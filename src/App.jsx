@@ -273,7 +273,7 @@ function App() {
       return [];
     }
   });
-  const [isAddingNewColor, setIsAddingNewColor] = useState(false);
+  const [isColorModalOpen, setIsColorModalOpen] = useState(false);
   const [newColorInput, setNewColorInput] = useState('');
 
   // Compute dynamic list of colors deduplicated from existing products + customColors + default popular colors
@@ -288,10 +288,11 @@ function App() {
     )
   ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
 
-  // Helper to save a newly created color
-  const handleSaveNewColor = (colorName) => {
-    if (!colorName || typeof colorName !== 'string') return;
-    const trimmed = colorName.trim();
+  // Helper to save a newly created color via dedicated Sub-Modal
+  const handleSaveNewColorModal = (e) => {
+    if (e) e.preventDefault();
+    if (!newColorInput || typeof newColorInput !== 'string') return;
+    const trimmed = newColorInput.trim();
     if (!trimmed) return;
 
     // Capitalize first letter cleanly
@@ -302,13 +303,13 @@ function App() {
       setCustomColors(updated);
       try {
         localStorage.setItem('byangels_custom_colors', JSON.stringify(updated));
-      } catch (e) {}
+      } catch (err) {}
     }
 
     setFormData(prev => ({ ...prev, Color: formatted }));
-    setIsAddingNewColor(false);
+    setIsColorModalOpen(false);
     setNewColorInput('');
-    showToast(`Color "${formatted}" registrado y seleccionado.`);
+    showToast(`Color "${formatted}" registrado y seleccionado exitosamente.`);
   };
 
   // Compute next auto-increment numorden value for new products
@@ -328,7 +329,7 @@ function App() {
   const handleOpenAddModal = () => {
     const nextOrder = calculateNextNumOrden();
     setEditingProduct(null);
-    setIsAddingNewColor(false);
+    setIsColorModalOpen(false);
     setNewColorInput('');
     setFormData({
       Nombre: '',
@@ -355,7 +356,7 @@ function App() {
   // Open modal to edit an existing product
   const handleOpenEditModal = (product, index) => {
     setEditingProduct(product);
-    setIsAddingNewColor(false);
+    setIsColorModalOpen(false);
     setNewColorInput('');
     const orderValue = product.numorden !== undefined && product.numorden !== null && product.numorden !== '' 
       ? product.numorden 
@@ -1470,88 +1471,49 @@ function App() {
                     </select>
                   </div>
 
-                  {/* Color Selector with Dynamic List & Quick Color Creator */}
+                  {/* Color Selector with Dedicated Pop-up Sub-Modal */}
                   <div className="form-group">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                       <label style={{ margin: 0 }}>Color de Prenda <span className="required">*</span></label>
-                      {!isAddingNewColor && (
-                        <button 
-                          type="button"
-                          onClick={() => { setIsAddingNewColor(true); setNewColorInput(''); }}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--accent-gold)',
-                            fontSize: '0.78rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          <i className="fa-solid fa-plus-circle"></i> + Crear Color
-                        </button>
-                      )}
+                      <button 
+                        type="button"
+                        onClick={() => { setNewColorInput(''); setIsColorModalOpen(true); }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--accent-gold)',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <i className="fa-solid fa-palette"></i> + Registrar Nuevo Color
+                      </button>
                     </div>
 
-                    {!isAddingNewColor ? (
-                      <select
-                        value={formData.Color}
-                        onChange={(e) => {
-                          if (e.target.value === '__CREATE_NEW__') {
-                            setIsAddingNewColor(true);
-                            setNewColorInput('');
-                          } else {
-                            setFormData({ ...formData, Color: e.target.value });
-                          }
-                        }}
-                        required
-                      >
-                        <option value="">-- Selecciona un Color --</option>
-                        {dynamicColors.map(c => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                        <option value="__CREATE_NEW__" style={{ fontWeight: 'bold', color: 'var(--accent-gold)' }}>
-                          ➕ + Crear Nuevo Color...
-                        </option>
-                      </select>
-                    ) : (
-                      /* Inline Quick Color Creator */
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <input 
-                          type="text" 
-                          placeholder="Nuevo color (ej: Verde Esmeralda)"
-                          value={newColorInput}
-                          onChange={(e) => setNewColorInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleSaveNewColor(newColorInput);
-                            }
-                          }}
-                          autoFocus
-                          style={{ flex: 1 }}
-                        />
-                        <button 
-                          type="button" 
-                          className="btn-primary" 
-                          onClick={() => handleSaveNewColor(newColorInput)}
-                          style={{ padding: '0 14px', height: '42px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
-                        >
-                          <i className="fa-solid fa-check"></i> Guardar
-                        </button>
-                        <button 
-                          type="button" 
-                          className="btn-secondary" 
-                          onClick={() => setIsAddingNewColor(false)}
-                          style={{ padding: '0 12px', height: '42px' }}
-                          title="Cancelar"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
+                    <select
+                      value={formData.Color}
+                      onChange={(e) => {
+                        if (e.target.value === '__CREATE_NEW__') {
+                          setNewColorInput('');
+                          setIsColorModalOpen(true);
+                        } else {
+                          setFormData({ ...formData, Color: e.target.value });
+                        }
+                      }}
+                      required
+                    >
+                      <option value="">-- Selecciona un Color --</option>
+                      {dynamicColors.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                      <option value="__CREATE_NEW__" style={{ fontWeight: 'bold', color: 'var(--accent-gold)' }}>
+                        🎨 + Registrar Nuevo Color en un Modal...
+                      </option>
+                    </select>
                   </div>
 
                   {/* Precio Soles */}
@@ -1640,6 +1602,51 @@ function App() {
                 </button>
                 <button type="submit" className="btn-primary">
                   <i className="fa-solid fa-floppy-disk"></i> {editingProduct ? 'Guardar Cambios' : 'Crear Producto'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Sub-Modal: Dedicated Pop-up to Add a New Color */}
+      {isColorModalOpen && (
+        <div className="modal-overlay" style={{ zIndex: 12000 }} onClick={() => setIsColorModalOpen(false)}>
+          <div className="modal-card" style={{ maxWidth: '420px', animation: 'fadeIn 0.25s ease' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🎨 Registrar Nuevo Color
+              </h2>
+              <button type="button" className="btn-close-modal" onClick={() => setIsColorModalOpen(false)}>
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveNewColorModal}>
+              <div className="modal-body" style={{ padding: '20px 24px' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 0, marginBottom: '16px' }}>
+                  Ingresa el nombre del nuevo color para agregarlo al catálogo. Estará disponible de inmediato para esta y futuras prendas.
+                </p>
+
+                <div className="form-group">
+                  <label>Nombre del Color <span className="required">*</span></label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="Ej: Verde Esmeralda, Palo Rosa, Lila"
+                    value={newColorInput}
+                    onChange={(e) => setNewColorInput(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button type="button" className="btn-secondary" onClick={() => setIsColorModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn-primary">
+                  <i className="fa-solid fa-floppy-disk"></i> Guardar y Seleccionar
                 </button>
               </div>
             </form>
