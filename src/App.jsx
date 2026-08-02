@@ -264,7 +264,7 @@ function App() {
     )
   );
 
-  // Custom Created Colors State (Persisted in localStorage)
+  // Custom Created & Deleted Colors State (Persisted in localStorage)
   const [customColors, setCustomColors] = useState(() => {
     try {
       const saved = localStorage.getItem('byangels_custom_colors');
@@ -273,10 +273,22 @@ function App() {
       return [];
     }
   });
+
+  const [deletedColors, setDeletedColors] = useState(() => {
+    try {
+      const saved = localStorage.getItem('byangels_deleted_colors');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
   const [isColorModalOpen, setIsColorModalOpen] = useState(false);
   const [newColorInput, setNewColorInput] = useState('');
+  const [editingColorName, setEditingColorName] = useState(null);
+  const [editColorInputValue, setEditColorInputValue] = useState('');
 
-  // Compute dynamic list of colors deduplicated from existing products + customColors + default popular colors
+  // Compute dynamic list of colors deduplicated from existing products + customColors + default popular colors - deletedColors
   const defaultColorsList = ['Negro', 'Blanco', 'Beige', 'Rosado', 'Rojo', 'Azul', 'Verde', 'Gris', 'Marfil', 'Lila', 'Marrón', 'Amarillo', 'Nude'];
   const dynamicColors = Array.from(
     new Set(
@@ -284,7 +296,9 @@ function App() {
         ...defaultColorsList,
         ...customColors,
         ...products.map(p => p.Color ? p.Color.trim() : '')
-      ].filter(Boolean)
+      ]
+        .filter(Boolean)
+        .filter(c => !deletedColors.includes(c))
     )
   ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
 
@@ -295,9 +309,15 @@ function App() {
     const trimmed = newColorInput.trim();
     if (!trimmed) return;
 
-    // Capitalize first letter cleanly
     const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
     
+    // Remove from deletedColors if previously deleted
+    const updatedDeleted = deletedColors.filter(c => c !== formatted);
+    setDeletedColors(updatedDeleted);
+    try {
+      localStorage.setItem('byangels_deleted_colors', JSON.stringify(updatedDeleted));
+    } catch (err) {}
+
     if (!customColors.includes(formatted)) {
       const updated = [...customColors, formatted];
       setCustomColors(updated);
@@ -307,9 +327,72 @@ function App() {
     }
 
     setFormData(prev => ({ ...prev, Color: formatted }));
-    setIsColorModalOpen(false);
     setNewColorInput('');
-    showToast(`Color "${formatted}" registrado y seleccionado exitosamente.`);
+    showToast(`Color "${formatted}" creado y seleccionado.`);
+  };
+
+  // Helper to start editing a color
+  const handleStartEditColor = (colorName) => {
+    setEditingColorName(colorName);
+    setEditColorInputValue(colorName);
+  };
+
+  // Helper to save edited color
+  const handleSaveEditColor = (oldName) => {
+    if (!editColorInputValue || !editColorInputValue.trim()) return;
+    const newName = editColorInputValue.trim().charAt(0).toUpperCase() + editColorInputValue.trim().slice(1);
+    if (newName === oldName) {
+      setEditingColorName(null);
+      return;
+    }
+
+    // Update customColors
+    const updatedCustom = customColors.map(c => c === oldName ? newName : c);
+    if (!updatedCustom.includes(newName)) updatedCustom.push(newName);
+    setCustomColors(updatedCustom);
+    try {
+      localStorage.setItem('byangels_custom_colors', JSON.stringify(updatedCustom));
+    } catch (err) {}
+
+    // Add oldName to deletedColors so it no longer appears
+    if (!deletedColors.includes(oldName)) {
+      const updatedDeleted = [...deletedColors, oldName];
+      setDeletedColors(updatedDeleted);
+      try {
+        localStorage.setItem('byangels_deleted_colors', JSON.stringify(updatedDeleted));
+      } catch (err) {}
+    }
+
+    // If currently selected form color is oldName, update it
+    if (formData.Color === oldName) {
+      setFormData(prev => ({ ...prev, Color: newName }));
+    }
+
+    setEditingColorName(null);
+    showToast(`Color renombrado a "${newName}".`);
+  };
+
+  // Helper to delete a color
+  const handleDeleteColor = (colorName) => {
+    const updatedCustom = customColors.filter(c => c !== colorName);
+    setCustomColors(updatedCustom);
+    try {
+      localStorage.setItem('byangels_custom_colors', JSON.stringify(updatedCustom));
+    } catch (err) {}
+
+    if (!deletedColors.includes(colorName)) {
+      const updatedDeleted = [...deletedColors, colorName];
+      setDeletedColors(updatedDeleted);
+      try {
+        localStorage.setItem('byangels_deleted_colors', JSON.stringify(updatedDeleted));
+      } catch (err) {}
+    }
+
+    if (formData.Color === colorName) {
+      setFormData(prev => ({ ...prev, Color: dynamicColors.find(c => c !== colorName) || '' }));
+    }
+
+    showToast(`Color "${colorName}" eliminado.`);
   };
 
   // Compute next auto-increment numorden value for new products
@@ -1609,47 +1692,159 @@ function App() {
         </div>
       )}
 
-      {/* Sub-Modal: Dedicated Pop-up to Add a New Color */}
+      {/* Sub-Modal: Dedicated Pop-up to Add, Edit, and Delete Colors */}
       {isColorModalOpen && (
         <div className="modal-overlay" style={{ zIndex: 12000 }} onClick={() => setIsColorModalOpen(false)}>
-          <div className="modal-card" style={{ maxWidth: '420px', animation: 'fadeIn 0.25s ease' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card" style={{ maxWidth: '480px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.25s ease' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                🎨 Crear Color
+                🎨 Gestionar y Crear Colores
               </h2>
               <button type="button" className="btn-close-modal" onClick={() => setIsColorModalOpen(false)}>
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveNewColorModal}>
-              <div className="modal-body" style={{ padding: '20px 24px' }}>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 0, marginBottom: '16px' }}>
-                  Ingresa el nombre del nuevo color para agregarlo al catálogo. Estará disponible de inmediato para esta y futuras prendas.
-                </p>
-
-                <div className="form-group">
-                  <label>Nombre del Color <span className="required">*</span></label>
+            <div className="modal-body" style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
+              {/* Create New Color Section */}
+              <form onSubmit={handleSaveNewColorModal} style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid var(--border-glass)' }}>
+                <label style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--accent-gold)', marginBottom: '8px', display: 'block' }}>
+                  ➕ Agregar un Nuevo Color:
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
                   <input 
                     type="text" 
-                    required
                     placeholder="Ej: Verde Esmeralda, Palo Rosa, Lila"
                     value={newColorInput}
                     onChange={(e) => setNewColorInput(e.target.value)}
-                    autoFocus
+                    style={{ flex: 1 }}
                   />
+                  <button type="submit" className="btn-primary" style={{ padding: '0 16px', height: '42px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                    <i className="fa-solid fa-plus"></i> Crear
+                  </button>
                 </div>
-              </div>
+              </form>
 
-              <div className="modal-footer" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button type="button" className="btn-secondary" onClick={() => setIsColorModalOpen(false)}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn-primary">
-                  <i className="fa-solid fa-floppy-disk"></i> Guardar y Seleccionar
-                </button>
+              {/* Existing Colors List with Edit & Delete Actions */}
+              <div>
+                <label style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '12px', display: 'block' }}>
+                  🎨 Colores Registrados ({dynamicColors.length}):
+                </label>
+
+                {dynamicColors.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>No hay colores registrados.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '260px', overflowY: 'auto', paddingRight: '4px' }}>
+                    {dynamicColors.map((col) => {
+                      const isEditingThis = editingColorName === col;
+                      const isSelectedInForm = formData.Color === col;
+
+                      return (
+                        <div 
+                          key={col} 
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'space-between',
+                            padding: '10px 14px',
+                            background: isSelectedInForm ? 'rgba(212, 175, 55, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                            border: isSelectedInForm ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: 'var(--radius-sm)'
+                          }}
+                        >
+                          {!isEditingThis ? (
+                            <>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ fontWeight: 600, fontSize: '0.92rem', color: isSelectedInForm ? 'var(--accent-gold)' : 'var(--text-main)' }}>
+                                  {col}
+                                </span>
+                                {isSelectedInForm && (
+                                  <span className="url-type-badge" style={{ background: 'var(--accent-gold)', color: '#000', fontSize: '0.7rem', padding: '2px 6px' }}>
+                                    Seleccionado
+                                  </span>
+                                )}
+                              </div>
+
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button 
+                                  type="button" 
+                                  className="btn-secondary"
+                                  style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                                  onClick={() => {
+                                    setFormData(prev => ({ ...prev, Color: col }));
+                                    showToast(`Color "${col}" seleccionado.`);
+                                  }}
+                                  title="Seleccionar este color"
+                                >
+                                  Seleccionar
+                                </button>
+                                <button 
+                                  type="button" 
+                                  className="btn-icon" 
+                                  style={{ padding: '6px 10px', fontSize: '0.82rem', color: 'var(--accent-gold)' }}
+                                  onClick={() => handleStartEditColor(col)}
+                                  title="Editar nombre del color"
+                                >
+                                  <i className="fa-solid fa-pen"></i>
+                                </button>
+                                <button 
+                                  type="button" 
+                                  className="btn-icon delete" 
+                                  style={{ padding: '6px 10px', fontSize: '0.82rem' }}
+                                  onClick={() => handleDeleteColor(col)}
+                                  title="Eliminar color"
+                                >
+                                  <i className="fa-solid fa-trash-can"></i>
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            /* Inline Color Editing Row */
+                            <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                              <input 
+                                type="text" 
+                                value={editColorInputValue}
+                                onChange={(e) => setEditColorInputValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleSaveEditColor(col);
+                                  }
+                                }}
+                                autoFocus
+                                style={{ flex: 1, padding: '6px 10px', fontSize: '0.88rem' }}
+                              />
+                              <button 
+                                type="button" 
+                                className="btn-primary"
+                                style={{ padding: '0 12px', fontSize: '0.8rem' }}
+                                onClick={() => handleSaveEditColor(col)}
+                              >
+                                <i className="fa-solid fa-check"></i>
+                              </button>
+                              <button 
+                                type="button" 
+                                className="btn-secondary"
+                                style={{ padding: '0 10px', fontSize: '0.8rem' }}
+                                onClick={() => setEditingColorName(null)}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </form>
+            </div>
+
+            <div className="modal-footer" style={{ padding: '14px 24px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn-secondary" onClick={() => setIsColorModalOpen(false)}>
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}
