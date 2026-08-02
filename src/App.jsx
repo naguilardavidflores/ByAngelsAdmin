@@ -70,6 +70,10 @@ function App() {
   ]);
   const [descuentosSaving, setDescuentosSaving] = useState(false);
 
+  // News / Notice Image Reels State (Pinterest & Google Drive URLs)
+  const [noticesList, setNoticesList] = useState([]);
+  const [noticesSaving, setNoticesSaving] = useState(false);
+
   // Toast Notification State
   const [toast, setToast] = useState(null);
 
@@ -193,10 +197,48 @@ function App() {
     }
   };
 
+  // Fetch News/Notices image reel URLs
+  const fetchNoticeConfig = async () => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/notice`, {
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
+      if (res.ok) {
+        const noticeData = await res.json();
+        const extractedUrls = [];
+        if (Array.isArray(noticeData) && noticeData.length > 0) {
+          noticeData.forEach(doc => {
+            Object.keys(doc).forEach(key => {
+              if (key.startsWith('urlN') && doc[key]) {
+                extractedUrls.push({
+                  key,
+                  url: doc[key]
+                });
+              }
+            });
+          });
+          extractedUrls.sort((a, b) => {
+            const numA = parseInt(a.key.replace('urlN', ''), 10) || 0;
+            const numB = parseInt(b.key.replace('urlN', ''), 10) || 0;
+            return numA - numB;
+          });
+        }
+        const urls = extractedUrls.map(item => item.url);
+        setNoticesList(urls);
+      }
+    } catch (err) {
+      console.warn('Could not fetch notice config:', err);
+    }
+  };
+
   useEffect(() => {
     fetchProducts(false);
     fetchCierreConfig();
     fetchDescuentosConfig();
+    fetchNoticeConfig();
   }, []);
 
   // Helper to normalize category names cleanly (e.g. "streetwear" -> "Streetwear")
@@ -432,6 +474,81 @@ function App() {
     }
   };
 
+  // Google Drive & Pinterest Image URL converter helper
+  const parseNewsImageUrl = (url) => {
+    if (!url || typeof url !== 'string') return '';
+    let trimmed = url.trim();
+    if (!trimmed) return '';
+
+    // Convert Google Drive sharing links to direct viewable image URLs
+    if (trimmed.includes('drive.google.com')) {
+      let fileId = '';
+      const matchD = trimmed.match(/\/file\/d\/([^\/]+)/);
+      if (matchD && matchD[1]) {
+        fileId = matchD[1];
+      } else {
+        const matchId = trimmed.match(/[?&]id=([^&]+)/);
+        if (matchId && matchId[1]) {
+          fileId = matchId[1];
+        }
+      }
+      if (fileId) {
+        return `https://lh3.googleusercontent.com/d/${fileId}`;
+      }
+    }
+
+    return trimmed;
+  };
+
+  const getUrlTypeBadge = (url) => {
+    if (!url) return null;
+    if (url.includes('drive.google.com') || url.includes('googleusercontent.com')) {
+      return { label: '📁 Google Drive', color: '#4285f4' };
+    }
+    if (url.includes('pinimg.com') || url.includes('pinterest.com')) {
+      return { label: '📌 Pinterest', color: '#e60023' };
+    }
+    return { label: '🔗 Enlace Directo', color: '#d4af37' };
+  };
+
+  const handleAddNoticeUrl = () => {
+    setNoticesList(prev => [...prev, '']);
+  };
+
+  const handleDeleteNoticeUrl = (idx) => {
+    setNoticesList(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateNoticeUrl = (idx, value) => {
+    const converted = parseNewsImageUrl(value);
+    setNoticesList(prev => {
+      const updated = [...prev];
+      updated[idx] = converted;
+      return updated;
+    });
+  };
+
+  const handleSaveNoticias = async (e) => {
+    e.preventDefault();
+    setNoticesSaving(true);
+    try {
+      const cleanUrls = noticesList.map(parseNewsImageUrl).filter(Boolean);
+      const res = await fetch(`${apiBaseUrl}/api/notice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cleanUrls)
+      });
+      if (!res.ok) throw new Error('Error al guardar noticias');
+      showToast('¡Noticias y anuncios promocionales guardados con éxito!');
+      fetchNoticeConfig();
+    } catch (err) {
+      console.error('Noticias save error:', err);
+      showToast('Error al guardar noticias en la API', 'error');
+    } finally {
+      setNoticesSaving(false);
+    }
+  };
+
   // Delete product confirmation
   const handleConfirmDelete = async () => {
     if (!deletingProduct) return;
@@ -502,6 +619,15 @@ function App() {
               <i className="fa-solid fa-tags"></i>
               <span>Reglas de Descuentos</span>
             </button>
+
+            <button 
+              type="button" 
+              className={`sidebar-link ${activeTab === 'noticias' ? 'active' : ''}`}
+              onClick={() => setActiveTab('noticias')}
+            >
+              <i className="fa-solid fa-newspaper"></i>
+              <span>Gestor de Noticias</span>
+            </button>
           </nav>
         </div>
 
@@ -525,11 +651,13 @@ function App() {
               {activeTab === 'catalog' && 'Catálogo de Productos'}
               {activeTab === 'cierre' && 'Cierre de Pedidos & Cronómetro'}
               {activeTab === 'descuentos' && 'Reglas de Descuentos por Rango de Precio'}
+              {activeTab === 'noticias' && 'Gestor de Noticias y Anuncios (Pinterest & Google Drive)'}
             </h2>
             <p>
               {activeTab === 'catalog' && 'Gestiona la lista de prendas, imágenes, precios y estado'}
               {activeTab === 'cierre' && 'Configura las 2 fechas/entregas semanales de pedidos para la tienda web'}
               {activeTab === 'descuentos' && 'Configura rangos de precio base y descuentos por cantidad comprada'}
+              {activeTab === 'noticias' && 'Agrega enlaces de imágenes desde Pinterest o Google Drive para los anuncios que se mostrarán en la web'}
             </p>
           </div>
 
@@ -552,6 +680,11 @@ function App() {
             {activeTab === 'descuentos' && (
               <button type="button" className="btn-primary" onClick={handleAddRange}>
                 <i className="fa-solid fa-plus"></i> Agregar Nuevo Rango
+              </button>
+            )}
+            {activeTab === 'noticias' && (
+              <button type="button" className="btn-primary" onClick={handleAddNoticeUrl}>
+                <i className="fa-solid fa-plus"></i> Agregar Noticia
               </button>
             )}
           </div>
@@ -1047,6 +1180,111 @@ function App() {
                   <button type="submit" className="btn-primary" disabled={descuentosSaving}>
                     {descuentosSaving ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>}
                     Guardar Reglas de Descuentos
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 4: NEWS & REELS PROMOTIONS MANAGER (PINTEREST & GOOGLE DRIVE) */}
+        {activeTab === 'noticias' && (
+          <div className="view-container">
+            <div className="cierre-config-card">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <i className="fa-solid fa-newspaper" style={{ fontSize: '1.6rem', color: 'var(--accent-gold)' }}></i>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Anuncios y Noticias Promocionales</h3>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    Configura la lista de imágenes para los reels de anuncios en el modal de noticias de la web.
+                  </p>
+                </div>
+              </div>
+
+              <div className="info-banner" style={{ background: 'rgba(66, 133, 244, 0.12)', border: '1px solid rgba(66, 133, 244, 0.3)', borderRadius: 'var(--radius-md)', padding: '14px 18px', marginBottom: '24px' }}>
+                <p style={{ margin: 0, fontSize: '0.88rem', color: '#8ab4f8', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <i className="fa-solid fa-lightbulb" style={{ fontSize: '1.2rem', color: '#fbbc04' }}></i>
+                  <span>
+                    <strong>Soporte para Pinterest y Google Drive:</strong> Puedes pegar directamente enlaces de <strong>Pinterest</strong> (<code>https://i.pinimg.com/...</code>) o enlaces de compartir de <strong>Google Drive</strong> (<code>https://drive.google.com/file/d/1ABC.../view</code>). El sistema los convertirá automáticamente a imagen directa.
+                  </span>
+                </p>
+              </div>
+
+              <form onSubmit={handleSaveNoticias}>
+                {noticesList.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-glass)' }}>
+                    <i className="fa-solid fa-images" style={{ fontSize: '2.5rem', color: 'var(--text-muted)', marginBottom: '12px' }}></i>
+                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>No hay anuncios ni noticias registrados aún.</p>
+                    <button type="button" className="btn-secondary" onClick={handleAddNoticeUrl} style={{ marginTop: '14px' }}>
+                      <i className="fa-solid fa-plus"></i> Agregar Primera Noticia
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    {noticesList.map((url, idx) => {
+                      const badge = getUrlTypeBadge(url);
+                      return (
+                        <div key={idx} className="news-input-card">
+                          <img 
+                            src={url || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=300'} 
+                            alt={`Noticia ${idx + 1}`} 
+                            className="news-thumb-preview"
+                            onError={(e) => {
+                              e.target.src = 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=300';
+                            }}
+                          />
+
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-gold)' }}>
+                                Noticia / Reel #{idx + 1}
+                              </span>
+                              {badge && (
+                                <span className="url-type-badge" style={{ background: badge.color }}>
+                                  {badge.label}
+                                </span>
+                              )}
+                            </div>
+
+                            <input 
+                              type="url" 
+                              value={url}
+                              onChange={(e) => handleUpdateNoticeUrl(idx, e.target.value)}
+                              placeholder="Pega el enlace de la imagen (Pinterest, Google Drive o Enlace Directo)"
+                              style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                background: 'rgba(0, 0, 0, 0.4)',
+                                border: '1px solid var(--border-glass)',
+                                borderRadius: 'var(--radius-sm)',
+                                color: 'var(--text-main)',
+                                fontSize: '0.9rem'
+                              }}
+                            />
+                          </div>
+
+                          <button 
+                            type="button" 
+                            className="btn-icon delete"
+                            onClick={() => handleDeleteNoticeUrl(idx)}
+                            title="Eliminar noticia"
+                          >
+                            <i className="fa-solid fa-trash-can"></i>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <button type="button" className="btn-secondary" onClick={handleAddNoticeUrl}>
+                    <i className="fa-solid fa-plus"></i> Agregar Otra Imagen de Noticia
+                  </button>
+
+                  <button type="submit" className="btn-primary" disabled={noticesSaving}>
+                    {noticesSaving ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>}
+                    Guardar Noticias
                   </button>
                 </div>
               </form>
