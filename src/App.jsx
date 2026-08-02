@@ -45,8 +45,42 @@ function App() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Fetch products from API
-  const fetchProducts = async () => {
+  // Helper to sort product list cleanly by numorden ascending
+  const sortProductsList = (list) => {
+    if (!list || !Array.isArray(list)) return [];
+    return [...list].sort((a, b) => {
+      const numA = Number(a.numorden !== undefined ? a.numorden : a.numOrden);
+      const numB = Number(b.numorden !== undefined ? b.numorden : b.numOrden);
+      const orderA = (!isNaN(numA) && numA !== null && numA !== '') ? numA : Infinity;
+      const orderB = (!isNaN(numB) && numB !== null && numB !== '') ? numB : Infinity;
+      return orderA - orderB;
+    });
+  };
+
+  /**
+   * Fetch products from API or localStorage cache.
+   * If forceRefresh is false (e.g. initial page load), it checks localStorage first
+   * to avoid unnecessary API database queries.
+   */
+  const fetchProducts = async (forceRefresh = false) => {
+    // Check localStorage cache first on initial load
+    if (!forceRefresh) {
+      try {
+        const cachedData = localStorage.getItem('byangels_admin_products');
+        if (cachedData) {
+          const parsed = JSON.parse(cachedData);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            console.log('⚡ Using cached admin catalog from localStorage');
+            setProducts(sortProductsList(parsed));
+            setLoading(false);
+            return; // Cache exists, skip API request to protect database!
+          }
+        }
+      } catch (cacheErr) {
+        console.warn('⚠️ Error reading admin cache:', cacheErr);
+      }
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -59,18 +93,33 @@ function App() {
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const data = await res.json();
       
-      // Sort products by numorden (ascending)
-      const sorted = [...data].sort((a, b) => {
-        const numA = Number(a.numorden !== undefined ? a.numorden : a.numOrden);
-        const numB = Number(b.numorden !== undefined ? b.numorden : b.numOrden);
-        const orderA = (!isNaN(numA) && numA !== null && numA !== '') ? numA : Infinity;
-        const orderB = (!isNaN(numB) && numB !== null && numB !== '') ? numB : Infinity;
-        return orderA - orderB;
-      });
-      
+      const sorted = sortProductsList(data);
       setProducts(sorted);
+
+      // Save fresh data to localStorage cache
+      try {
+        localStorage.setItem('byangels_admin_products', JSON.stringify(sorted));
+        console.log('⚡ Saved fresh admin catalog to localStorage cache');
+      } catch (saveErr) {
+        console.warn('⚠️ Error saving to admin cache:', saveErr);
+      }
+
+      if (forceRefresh) {
+        showToast('Catálogo actualizado desde la base de datos');
+      }
     } catch (err) {
       console.error('Error fetching catalog:', err);
+      // Fallback to local storage if API network fails
+      try {
+        const cachedData = localStorage.getItem('byangels_admin_products');
+        if (cachedData) {
+          setProducts(sortProductsList(JSON.parse(cachedData)));
+          showToast('Servidor API fuera de línea. Mostrando datos guardados localmente.', 'error');
+          setLoading(false);
+          return;
+        }
+      } catch (e) {}
+
       setError('No se pudo conectar con el servidor API. Verifica la conexión.');
       showToast('Error cargando catálogo desde la API', 'error');
     } finally {
@@ -79,7 +128,7 @@ function App() {
   };
 
   useEffect(() => {
-    fetchProducts();
+    fetchProducts(false); // Initial load: check cache first!
   }, []);
 
   // Compute next auto-increment numorden value for new products
@@ -119,8 +168,12 @@ function App() {
   };
 
   // Open modal to edit an existing product
-  const handleOpenEditModal = (product) => {
+  const handleOpenEditModal = (product, index) => {
     setEditingProduct(product);
+    const orderValue = product.numorden !== undefined && product.numorden !== null && product.numorden !== '' 
+      ? product.numorden 
+      : (product.numOrden !== undefined ? product.numOrden : (index + 1));
+
     setFormData({
       Nombre: product.Nombre || '',
       Categoria: product.Categoria || 'Casual',
@@ -128,7 +181,7 @@ function App() {
       Precio: String(product.Precio || '0.00'),
       Nuevo: product.Nuevo === true || product.Nuevo === 'Si' || product.Nuevo === 'true' ? 'Si' : 'No',
       Tendencia: product.Tendencia === true || product.Tendencia === 'Si' || product.Tendencia === 'true' ? 'Si' : 'No',
-      numorden: String(product.numorden !== undefined ? product.numorden : product.numOrden || ''),
+      numorden: String(orderValue),
       imgReel0: product.imgReel0 || '',
       imgReel1: product.imgReel1 || '',
       imgReel2: product.imgReel2 || '',
@@ -170,7 +223,8 @@ function App() {
       }
 
       setIsModalOpen(false);
-      fetchProducts();
+      // Force refresh API & update localStorage cache after mutate action
+      fetchProducts(true);
     } catch (err) {
       console.error('Submit error:', err);
       showToast('Error al guardar el producto en la API', 'error');
@@ -187,7 +241,8 @@ function App() {
       if (!res.ok) throw new Error('Error al eliminar');
       showToast('Producto eliminado correctamente');
       setDeletingProduct(null);
-      fetchProducts();
+      // Force refresh API & update localStorage cache after mutate action
+      fetchProducts(true);
     } catch (err) {
       console.error('Delete error:', err);
       showToast('Error al eliminar el producto', 'error');
@@ -218,7 +273,13 @@ function App() {
         </div>
 
         <div className="header-actions">
-          <button type="button" className="btn-secondary" onClick={fetchProducts}>
+          {/* Manual Refresh Button: Forces API Fetch and updates cache */}
+          <button 
+            type="button" 
+            className="btn-secondary" 
+            onClick={() => fetchProducts(true)}
+            title="Actualizar datos desde la Base de Datos"
+          >
             <i className="fa-solid fa-rotate"></i> Actualizar
           </button>
           <button type="button" className="btn-primary" onClick={handleOpenAddModal}>
@@ -296,18 +357,18 @@ function App() {
         </div>
       </div>
 
-      {/* Products Data Table */}
+      {/* Products Data Table Section with Independent Container Scroll */}
       <div className="table-card">
         {loading ? (
           <div style={{ padding: '40px', textTransform: 'uppercase', textAlign: 'center', color: 'var(--text-muted)' }}>
             <i className="fa-solid fa-spinner fa-spin fa-2x"></i>
-            <p style={{ marginTop: '12px' }}>Cargando catálogo desde la base de datos...</p>
+            <p style={{ marginTop: '12px' }}>Cargando catálogo...</p>
           </div>
         ) : error ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--accent-red)' }}>
             <i className="fa-solid fa-triangle-exclamation fa-2x"></i>
             <p style={{ marginTop: '12px' }}>{error}</p>
-            <button type="button" className="btn-secondary" onClick={fetchProducts} style={{ marginTop: '16px' }}>
+            <button type="button" className="btn-secondary" onClick={() => fetchProducts(true)} style={{ marginTop: '16px' }}>
               Reintentar
             </button>
           </div>
@@ -334,13 +395,16 @@ function App() {
                     </td>
                   </tr>
                 ) : (
-                  filteredProducts.map((p) => {
+                  filteredProducts.map((p, index) => {
                     const isNew = p.Nuevo === true || p.Nuevo === 'Si' || p.Nuevo === 'true';
+                    const orderDisplay = (p.numorden !== undefined && p.numorden !== null && p.numorden !== '')
+                      ? p.numorden
+                      : (p.numOrden !== undefined && p.numOrden !== null && p.numOrden !== '' ? p.numOrden : (index + 1));
                     return (
-                      <tr key={p.id}>
+                      <tr key={p.id || index}>
                         <td>
-                          {/* numorden is visible & read-only */}
-                          <span className="numorden-badge">#{p.numorden || p.numOrden || '-'}</span>
+                          {/* numorden badge visible & read-only */}
+                          <span className="numorden-badge">#{orderDisplay}</span>
                         </td>
                         <td>
                           <div className="product-thumb-container">
@@ -373,7 +437,7 @@ function App() {
                               type="button" 
                               className="btn-icon edit" 
                               title="Editar Producto"
-                              onClick={() => handleOpenEditModal(p)}
+                              onClick={() => handleOpenEditModal(p, index)}
                             >
                               <i className="fa-solid fa-pen-to-square"></i>
                             </button>
