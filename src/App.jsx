@@ -81,6 +81,14 @@ function App() {
   const [noticesList, setNoticesList] = useState([]);
   const [noticesSaving, setNoticesSaving] = useState(false);
 
+  // Music Manager State (Background playlist tracks)
+  const [musicsList, setMusicsList] = useState([]);
+  const [musicsLoading, setMusicsLoading] = useState(false);
+  const [isMusicModalOpen, setIsMusicModalOpen] = useState(false);
+  const [editingMusic, setEditingMusic] = useState(null);
+  const [musicFormData, setMusicFormData] = useState({ title: '', artist: 'ByAngels Boutique', url: '' });
+  const [deletingMusic, setDeletingMusic] = useState(null);
+
   // Toast Notification State
   const [toast, setToast] = useState(null);
 
@@ -241,11 +249,58 @@ function App() {
     }
   };
 
+  // Fetch Background Music playlist config
+  const fetchMusicsConfig = async (forceRefresh = false) => {
+    if (!forceRefresh) {
+      try {
+        const cached = localStorage.getItem('byangels_admin_musics');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMusicsList(parsed);
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+
+    setMusicsLoading(true);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/Musics`, {
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const mapped = Array.isArray(data) ? data.map(song => ({
+          id: song.id,
+          title: song.title || song.NombreMusic || 'Canción sin título',
+          artist: song.artist || 'ByAngels Boutique',
+          url: song.url || song.urlMusic || ''
+        })) : [];
+        setMusicsList(mapped);
+        try {
+          localStorage.setItem('byangels_admin_musics', JSON.stringify(mapped));
+        } catch (e) {}
+        if (forceRefresh) {
+          showToast('Lista de canciones actualizada');
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch musics config:', err);
+    } finally {
+      setMusicsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchProducts(false);
     fetchCierreConfig();
     fetchDescuentosConfig();
     fetchNoticeConfig();
+    fetchMusicsConfig();
   }, []);
 
   // Helper to normalize category names cleanly (e.g. "streetwear" -> "Streetwear")
@@ -693,6 +748,103 @@ function App() {
     }
   };
 
+  // MUSIC PLAYLIST MANAGEMENT HANDLERS
+  const handleOpenAddMusicModal = () => {
+    setEditingMusic(null);
+    setMusicFormData({
+      title: '',
+      artist: 'ByAngels Boutique',
+      url: ''
+    });
+    setIsMusicModalOpen(true);
+  };
+
+  const handleOpenEditMusicModal = (song) => {
+    setEditingMusic(song);
+    setMusicFormData({
+      title: song.title || song.NombreMusic || '',
+      artist: song.artist || 'ByAngels Boutique',
+      url: song.url || song.urlMusic || ''
+    });
+    setIsMusicModalOpen(true);
+  };
+
+  const handleSubmitMusicForm = async (e) => {
+    e.preventDefault();
+    if (!musicFormData.title.trim()) {
+      showToast('Por favor ingresa el nombre de la canción', 'error');
+      return;
+    }
+    if (!musicFormData.url.trim()) {
+      showToast('Por favor ingresa el enlace (URL MP3) de la canción', 'error');
+      return;
+    }
+
+    try {
+      if (editingMusic) {
+        const res = await fetch(`${apiBaseUrl}/api/Musics/${editingMusic.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(musicFormData)
+        });
+        if (!res.ok) throw new Error('Error al actualizar canción');
+        showToast('¡Canción actualizada con éxito!');
+      } else {
+        const res = await fetch(`${apiBaseUrl}/api/Musics`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(musicFormData)
+        });
+        if (!res.ok) throw new Error('Error al crear canción');
+        showToast('¡Nueva canción agregada a la playlist!');
+      }
+
+      setIsMusicModalOpen(false);
+      fetchMusicsConfig(true);
+    } catch (err) {
+      console.error('Music save error:', err);
+      // Fallback local state save
+      const newTrack = {
+        id: editingMusic ? editingMusic.id : 'song_' + Date.now(),
+        ...musicFormData
+      };
+      let updatedList = [...musicsList];
+      if (editingMusic) {
+        updatedList = updatedList.map(s => s.id === editingMusic.id ? newTrack : s);
+      } else {
+        updatedList.push(newTrack);
+      }
+      setMusicsList(updatedList);
+      try {
+        localStorage.setItem('byangels_admin_musics', JSON.stringify(updatedList));
+      } catch (e) {}
+      setIsMusicModalOpen(false);
+      showToast(editingMusic ? 'Canción actualizada (local)' : 'Canción agregada (local)');
+    }
+  };
+
+  const handleConfirmDeleteMusic = async () => {
+    if (!deletingMusic) return;
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/Musics/${deletingMusic.id}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Error al eliminar canción');
+      showToast('Canción eliminada correctamente');
+      setDeletingMusic(null);
+      fetchMusicsConfig(true);
+    } catch (err) {
+      console.error('Delete music error:', err);
+      const updatedList = musicsList.filter(s => s.id !== deletingMusic.id);
+      setMusicsList(updatedList);
+      try {
+        localStorage.setItem('byangels_admin_musics', JSON.stringify(updatedList));
+      } catch (e) {}
+      setDeletingMusic(null);
+      showToast('Canción eliminada (local)');
+    }
+  };
+
   // Delete product confirmation
   const handleConfirmDelete = async () => {
     if (!deletingProduct) return;
@@ -820,6 +972,15 @@ function App() {
               <i className="fa-solid fa-newspaper"></i>
               <span>Gestor de Noticias</span>
             </button>
+
+            <button 
+              type="button" 
+              className={`sidebar-link ${activeTab === 'musica' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('musica'); setIsMobileMenuOpen(false); }}
+            >
+              <i className="fa-solid fa-music"></i>
+              <span>Música de Fondo</span>
+            </button>
           </nav>
         </div>
 
@@ -844,12 +1005,14 @@ function App() {
               {activeTab === 'cierre' && 'Cierre de Pedidos & Cronómetro'}
               {activeTab === 'descuentos' && 'Reglas de Descuentos por Rango de Precio'}
               {activeTab === 'noticias' && 'Gestor de Noticias y Anuncios (Pinterest & Google Drive)'}
+              {activeTab === 'musica' && 'Gestor de Música de Fondo'}
             </h2>
             <p>
               {activeTab === 'catalog' && 'Gestiona la lista de prendas, imágenes, precios y estado'}
               {activeTab === 'cierre' && 'Configura las 2 fechas/entregas semanales de pedidos para la tienda web'}
               {activeTab === 'descuentos' && 'Configura rangos de precio base y descuentos por cantidad comprada'}
               {activeTab === 'noticias' && 'Agrega enlaces de imágenes desde Pinterest o Google Drive para los anuncios que se mostrarán en la web'}
+              {activeTab === 'musica' && 'Agrega, edita o elimina la lista de canciones de fondo que escuchan los clientes en la tienda web'}
             </p>
           </div>
 
@@ -878,6 +1041,21 @@ function App() {
               <button type="button" className="btn-primary" onClick={handleAddNoticeUrl}>
                 <i className="fa-solid fa-plus"></i> Agregar Noticia
               </button>
+            )}
+            {activeTab === 'musica' && (
+              <>
+                <button 
+                  type="button" 
+                  className="btn-secondary" 
+                  onClick={() => fetchMusicsConfig(true)}
+                  title="Actualizar lista de canciones"
+                >
+                  <i className="fa-solid fa-rotate"></i> Actualizar
+                </button>
+                <button type="button" className="btn-primary" onClick={handleOpenAddMusicModal}>
+                  <i className="fa-solid fa-plus"></i> Agregar Canción
+                </button>
+              </>
             )}
           </div>
         </header>
@@ -1500,6 +1678,111 @@ function App() {
             </div>
           </div>
         )}
+
+        {/* VIEW 5: BACKGROUND MUSIC PLAYLIST MANAGER */}
+        {activeTab === 'musica' && (
+          <div className="view-container news-manager-container">
+            <div className="cierre-config-card news-config-card-sticky">
+              <div className="news-manager-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <i className="fa-solid fa-music" style={{ fontSize: '1.6rem', color: 'var(--accent-gold)' }}></i>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Lista de Canciones de Fondo</h3>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      Administra las canciones que escuchan los clientes mientras navegan en la boutique web.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="info-banner" style={{ background: 'rgba(212, 175, 55, 0.1)', border: '1px solid rgba(212, 175, 55, 0.3)', borderRadius: 'var(--radius-md)', padding: '10px 14px', marginTop: '12px' }}>
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--accent-gold)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-circle-info" style={{ fontSize: '1.1rem' }}></i>
+                    <span>
+                      Soporta enlaces de audio directos (MP3, SoundHelix) y enlaces de <strong>GitHub Raw</strong>.
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="news-cards-scroll-area" style={{ marginTop: '16px' }}>
+                {musicsLoading ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: 'var(--accent-gold)' }}>
+                    <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2rem', marginBottom: '12px' }}></i>
+                    <p>Cargando lista de canciones...</p>
+                  </div>
+                ) : musicsList.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-glass)' }}>
+                    <i className="fa-solid fa-music" style={{ fontSize: '2.5rem', color: 'var(--text-muted)', marginBottom: '12px' }}></i>
+                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>No hay canciones registradas en la playlist.</p>
+                    <button type="button" className="btn-secondary" onClick={handleOpenAddMusicModal} style={{ marginTop: '14px' }}>
+                      <i className="fa-solid fa-plus"></i> Agregar Primera Canción
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+                    {musicsList.map((song, idx) => (
+                      <div key={song.id || idx} className="admin-card" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-md)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'var(--gradient-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                              🎵
+                            </div>
+                            <div>
+                              <h4 style={{ margin: 0, fontSize: '0.98rem', color: 'var(--text-main)' }}>{song.title || song.NombreMusic}</h4>
+                              <small style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{song.artist || 'ByAngels Boutique'}</small>
+                            </div>
+                          </div>
+                          <span className="url-type-badge" style={{ background: 'var(--accent-purple)', color: '#fff', fontSize: '0.7rem', padding: '3px 8px' }}>
+                            #{idx + 1}
+                          </span>
+                        </div>
+
+                        {/* Audio Preview Player */}
+                        {song.url && (
+                          <audio 
+                            controls 
+                            src={song.url} 
+                            style={{ width: '100%', height: '36px', marginTop: '4px' }}
+                          />
+                        )}
+
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: 'var(--radius-sm)' }}>
+                          <i className="fa-solid fa-link" style={{ marginRight: '6px' }}></i> {song.url}
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                          <button 
+                            type="button" 
+                            className="btn-secondary" 
+                            style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+                            onClick={() => handleOpenEditMusicModal(song)}
+                          >
+                            <i className="fa-solid fa-pen"></i> Editar
+                          </button>
+                          <button 
+                            type="button" 
+                            className="btn-icon delete" 
+                            style={{ padding: '6px 12px', fontSize: '0.82rem' }}
+                            onClick={() => setDeletingMusic(song)}
+                            title="Eliminar canción"
+                          >
+                            <i className="fa-solid fa-trash-can"></i>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="news-manager-sticky-footer">
+                <button type="button" className="btn-primary" onClick={handleOpenAddMusicModal}>
+                  <i className="fa-solid fa-plus"></i> Agregar Nueva Canción
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Modal Add / Edit Form */}
@@ -1863,6 +2146,89 @@ function App() {
                 Cancelar
               </button>
               <button type="button" className="btn-danger" onClick={handleConfirmDelete}>
+                Sí, Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Add / Edit Music Track */}
+      {isMusicModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsMusicModalOpen(false)}>
+          <div className="modal-card" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{editingMusic ? '✏️ Editar Canción' : '🎵 Agregar Canción a la Lista'}</h2>
+              <button type="button" className="btn-close-modal" onClick={() => setIsMusicModalOpen(false)}>
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitMusicForm}>
+              <div className="modal-body">
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label>Nombre / Título de la Canción <span className="required">*</span></label>
+                  <input 
+                    type="text" 
+                    required 
+                    placeholder="Ej: Mientestanbonito Sin Voz, Lofi Chill"
+                    value={musicFormData.title}
+                    onChange={(e) => setMusicFormData({ ...musicFormData, title: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label>Artista / Álbum</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ej: ByAngels Boutique"
+                    value={musicFormData.artist}
+                    onChange={(e) => setMusicFormData({ ...musicFormData, artist: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label>Enlace MP3 / URL del Audio <span className="required">*</span></label>
+                  <input 
+                    type="url" 
+                    required
+                    placeholder="Ej: https://raw.githubusercontent.com/.../musica.mp3"
+                    value={musicFormData.url}
+                    onChange={(e) => setMusicFormData({ ...musicFormData, url: e.target.value })}
+                  />
+                  <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
+                    💡 Puedes usar enlaces de audio directo MP3, SoundHelix o GitHub Raw.
+                  </small>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={() => setIsMusicModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn-primary">
+                  <i className="fa-solid fa-floppy-disk"></i> {editingMusic ? 'Guardar Cambios' : 'Agregar Canción'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Music Confirmation Modal */}
+      {deletingMusic && (
+        <div className="modal-overlay" onClick={() => setDeletingMusic(null)}>
+          <div className="confirm-box" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-icon">
+              <i className="fa-solid fa-circle-exclamation"></i>
+            </div>
+            <h3>¿Eliminar Canción?</h3>
+            <p>¿Estás seguro de eliminar la canción <strong>"{deletingMusic.title || deletingMusic.NombreMusic}"</strong> de la lista de reproducciones?</p>
+            <div className="confirm-actions">
+              <button type="button" className="btn-secondary" onClick={() => setDeletingMusic(null)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-danger" onClick={handleConfirmDeleteMusic}>
                 Sí, Eliminar
               </button>
             </div>
