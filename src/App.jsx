@@ -6,15 +6,18 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // Navigation Menu Tabs: 'catalog' | 'cierre'
+  const [activeTab, setActiveTab] = useState('catalog');
+
   // Search and Filter controls
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   
-  // Modal state (Add / Edit)
+  // Modal state (Add / Edit Product)
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null); // null = Add mode, object = Edit mode
+  const [editingProduct, setEditingProduct] = useState(null);
 
-  // Form State
+  // Product Form State
   const [formData, setFormData] = useState({
     Nombre: '',
     Categoria: 'Athleisure',
@@ -34,6 +37,17 @@ function App() {
 
   // Delete Confirmation Modal State
   const [deletingProduct, setDeletingProduct] = useState(null);
+
+  // Order Closing Countdown Config State (Cierre de Pedidos)
+  const [cierreConfig, setCierreConfig] = useState({
+    diaInicio: 'Lunes',
+    horaInicio: '08:00',
+    diaFin: 'Viernes',
+    horaFin: '23:59',
+    titulo: 'Cierre de Pedidos Semanal',
+    activo: true
+  });
+  const [cierreSaving, setCierreSaving] = useState(false);
 
   // Toast Notification State
   const [toast, setToast] = useState(null);
@@ -57,13 +71,8 @@ function App() {
     });
   };
 
-  /**
-   * Fetch products from API or localStorage cache.
-   * If forceRefresh is false (e.g. initial page load), it checks localStorage first
-   * to avoid unnecessary API database queries.
-   */
+  // Fetch products from API or localStorage cache
   const fetchProducts = async (forceRefresh = false) => {
-    // Check localStorage cache first on initial load
     if (!forceRefresh) {
       try {
         const cachedData = localStorage.getItem('byangels_admin_products');
@@ -73,7 +82,7 @@ function App() {
             console.log('⚡ Using cached admin catalog from localStorage');
             setProducts(sortProductsList(parsed));
             setLoading(false);
-            return; // Cache exists, skip API request to protect database!
+            return;
           }
         }
       } catch (cacheErr) {
@@ -96,20 +105,15 @@ function App() {
       const sorted = sortProductsList(data);
       setProducts(sorted);
 
-      // Save fresh data to localStorage cache
       try {
         localStorage.setItem('byangels_admin_products', JSON.stringify(sorted));
-        console.log('⚡ Saved fresh admin catalog to localStorage cache');
-      } catch (saveErr) {
-        console.warn('⚠️ Error saving to admin cache:', saveErr);
-      }
+      } catch (saveErr) {}
 
       if (forceRefresh) {
         showToast('Catálogo actualizado desde la base de datos');
       }
     } catch (err) {
       console.error('Error fetching catalog:', err);
-      // Fallback to local storage if API network fails
       try {
         const cachedData = localStorage.getItem('byangels_admin_products');
         if (cachedData) {
@@ -127,9 +131,37 @@ function App() {
     }
   };
 
+  // Fetch Order Closing Schedule configuration
+  const fetchCierreConfig = async () => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/cierre`, {
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCierreConfig(data);
+      }
+    } catch (err) {
+      console.warn('Could not fetch cierre config:', err);
+    }
+  };
+
   useEffect(() => {
-    fetchProducts(false); // Initial load: check cache first!
+    fetchProducts(false);
+    fetchCierreConfig();
   }, []);
+
+  // Compute dynamic list of categories from existing products + defaults
+  const dynamicCategories = Array.from(new Set([
+    'Athleisure',
+    'Casual',
+    'Streetwear',
+    'Urbano',
+    ...products.map(p => p.Categoria).filter(Boolean)
+  ]));
 
   // Compute next auto-increment numorden value for new products
   const calculateNextNumOrden = () => {
@@ -150,12 +182,12 @@ function App() {
     setEditingProduct(null);
     setFormData({
       Nombre: '',
-      Categoria: 'Athleisure',
+      Categoria: dynamicCategories[0] || 'Athleisure',
       Color: 'Negro',
       Precio: '40.00',
       Nuevo: 'Si',
       Tendencia: 'Si',
-      numorden: String(nextOrder), // Auto-calculated read-only field
+      numorden: String(nextOrder),
       imgReel0: 'https://i.pinimg.com/736x/c7/6f/45/c76f457d508db1209af9b3acd94ec4cf.jpg',
       imgReel1: 'https://i.pinimg.com/736x/06/7e/22/067e22fe3a6f98d10fcd00ec1bbf781a.jpg',
       imgReel2: 'https://i.pinimg.com/736x/5b/97/97/5b97970d05090ee0ac89fbb558cd95b3.jpg',
@@ -193,7 +225,7 @@ function App() {
     setIsModalOpen(true);
   };
 
-  // Handle Form Submission (Save New or Update)
+  // Handle Form Submission (Save New or Update Product)
   const handleSubmitForm = async (e) => {
     e.preventDefault();
     if (!formData.Nombre.trim()) {
@@ -203,7 +235,6 @@ function App() {
 
     try {
       if (editingProduct) {
-        // UPDATE Existing Product
         const res = await fetch(`${apiBaseUrl}/api/shopreel/${editingProduct.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -212,7 +243,6 @@ function App() {
         if (!res.ok) throw new Error('Error al actualizar');
         showToast('¡Producto actualizado con éxito!');
       } else {
-        // CREATE New Product
         const res = await fetch(`${apiBaseUrl}/api/shopreel`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -223,11 +253,32 @@ function App() {
       }
 
       setIsModalOpen(false);
-      // Force refresh API & update localStorage cache after mutate action
       fetchProducts(true);
     } catch (err) {
       console.error('Submit error:', err);
       showToast('Error al guardar el producto en la API', 'error');
+    }
+  };
+
+  // Save Order Closing Schedule Configuration
+  const handleSaveCierreConfig = async (e) => {
+    e.preventDefault();
+    setCierreSaving(true);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/cierre`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cierreConfig)
+      });
+      if (!res.ok) throw new Error('Error al guardar horario');
+      const updated = await res.json();
+      setCierreConfig(updated);
+      showToast('¡Horario de cierre de pedidos actualizado!');
+    } catch (err) {
+      console.error('Cierre save error:', err);
+      showToast('Error al guardar configuración de cierre', 'error');
+    } finally {
+      setCierreSaving(false);
     }
   };
 
@@ -241,7 +292,6 @@ function App() {
       if (!res.ok) throw new Error('Error al eliminar');
       showToast('Producto eliminado correctamente');
       setDeletingProduct(null);
-      // Force refresh API & update localStorage cache after mutate action
       fetchProducts(true);
     } catch (err) {
       console.error('Delete error:', err);
@@ -258,7 +308,7 @@ function App() {
 
   return (
     <div className="admin-app">
-      {/* Top Navbar Header */}
+      {/* Top Navbar Header with Navigation Tabs Menu */}
       <header className="admin-header">
         <div className="brand-wrapper">
           <img 
@@ -268,198 +318,331 @@ function App() {
           />
           <div className="brand-title-group">
             <h1>ByAngels Admin</h1>
-            <p>Panel de Gestión de Catálogo & Productos</p>
+            <p>Panel de Gestión Integral</p>
           </div>
+        </div>
+
+        {/* Navigation Menu Tabs */}
+        <div className="nav-tabs-wrapper">
+          <button 
+            type="button"
+            className={`nav-tab-btn ${activeTab === 'catalog' ? 'active' : ''}`}
+            onClick={() => setActiveTab('catalog')}
+          >
+            <i className="fa-solid fa-shirt"></i> Catálogo
+          </button>
+          <button 
+            type="button"
+            className={`nav-tab-btn ${activeTab === 'cierre' ? 'active' : ''}`}
+            onClick={() => setActiveTab('cierre')}
+          >
+            <i className="fa-solid fa-stopwatch"></i> Cierre de Pedidos
+          </button>
         </div>
 
         <div className="header-actions">
-          {/* Manual Refresh Button: Forces API Fetch and updates cache */}
-          <button 
-            type="button" 
-            className="btn-secondary" 
-            onClick={() => fetchProducts(true)}
-            title="Actualizar datos desde la Base de Datos"
-          >
-            <i className="fa-solid fa-rotate"></i> Actualizar
-          </button>
-          <button type="button" className="btn-primary" onClick={handleOpenAddModal}>
-            <i className="fa-solid fa-plus"></i> Agregar Producto
-          </button>
+          {activeTab === 'catalog' && (
+            <>
+              <button 
+                type="button" 
+                className="btn-secondary" 
+                onClick={() => fetchProducts(true)}
+                title="Actualizar datos desde la Base de Datos"
+              >
+                <i className="fa-solid fa-rotate"></i> Actualizar
+              </button>
+              <button type="button" className="btn-primary" onClick={handleOpenAddModal}>
+                <i className="fa-solid fa-plus"></i> Agregar Producto
+              </button>
+            </>
+          )}
         </div>
       </header>
 
-      {/* Dashboard Metrics Grid */}
-      <div className="metrics-grid">
-        <div className="metric-card">
-          <div className="metric-icon-box gold">
-            <i className="fa-solid fa-shirt"></i>
-          </div>
-          <div className="metric-info">
-            <label>Total Prendas</label>
-            <h2>{products.length}</h2>
-          </div>
-        </div>
+      {/* VIEW 1: CATALOGUE MANAGEMENT */}
+      {activeTab === 'catalog' && (
+        <>
+          {/* Dashboard Metrics Grid */}
+          <div className="metrics-grid">
+            <div className="metric-card">
+              <div className="metric-icon-box gold">
+                <i className="fa-solid fa-shirt"></i>
+              </div>
+              <div className="metric-info">
+                <label>Total Prendas</label>
+                <h2>{products.length}</h2>
+              </div>
+            </div>
 
-        <div className="metric-card">
-          <div className="metric-icon-box green">
-            <i className="fa-solid fa-sparkles"></i>
-          </div>
-          <div className="metric-info">
-            <label>Nuevos Ingresos</label>
-            <h2>{products.filter(p => p.Nuevo === true || p.Nuevo === 'Si' || p.Nuevo === 'true').length}</h2>
-          </div>
-        </div>
+            <div className="metric-card">
+              <div className="metric-icon-box green">
+                <i className="fa-solid fa-sparkles"></i>
+              </div>
+              <div className="metric-info">
+                <label>Nuevos Ingresos</label>
+                <h2>{products.filter(p => p.Nuevo === true || p.Nuevo === 'Si' || p.Nuevo === 'true').length}</h2>
+              </div>
+            </div>
 
-        <div className="metric-card">
-          <div className="metric-icon-box pink">
-            <i className="fa-solid fa-fire"></i>
-          </div>
-          <div className="metric-info">
-            <label>Tendencia</label>
-            <h2>{products.filter(p => p.Tendencia === true || p.Tendencia === 'Si' || p.Tendencia === 'true').length}</h2>
-          </div>
-        </div>
+            <div className="metric-card">
+              <div className="metric-icon-box pink">
+                <i className="fa-solid fa-fire"></i>
+              </div>
+              <div className="metric-info">
+                <label>Tendencia</label>
+                <h2>{products.filter(p => p.Tendencia === true || p.Tendencia === 'Si' || p.Tendencia === 'true').length}</h2>
+              </div>
+            </div>
 
-        <div className="metric-card">
-          <div className="metric-icon-box cyan">
-            <i className="fa-solid fa-tags"></i>
+            <div className="metric-card">
+              <div className="metric-icon-box cyan">
+                <i className="fa-solid fa-tags"></i>
+              </div>
+              <div className="metric-info">
+                <label>Categorías</label>
+                <h2>{dynamicCategories.length}</h2>
+              </div>
+            </div>
           </div>
-          <div className="metric-info">
-            <label>Categorías</label>
-            <h2>{[...new Set(products.map(p => p.Categoria).filter(Boolean))].length}</h2>
-          </div>
-        </div>
-      </div>
 
-      {/* Control Bar: Search & Category Filter */}
-      <div className="controls-bar">
-        <div className="search-box">
-          <i className="fa-solid fa-magnifying-glass"></i>
-          <input
-            type="text"
-            placeholder="Buscar prenda por nombre..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+          {/* Control Bar: Search & Dynamic Category Filter */}
+          <div className="controls-bar">
+            <div className="search-box">
+              <i className="fa-solid fa-magnifying-glass"></i>
+              <input
+                type="text"
+                placeholder="Buscar prenda por nombre..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
 
-        <div className="filter-group">
-          <select 
-            className="select-filter"
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-          >
-            <option value="">Todas las Categorías</option>
-            <option value="Athleisure">Athleisure</option>
-            <option value="Casual">Casual</option>
-            <option value="Streetwear">Streetwear</option>
-          </select>
-        </div>
-      </div>
+            <div className="filter-group">
+              {/* Dynamic Categories Dropdown */}
+              <select 
+                className="select-filter"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                <option value="">Todas las Categorías ({products.length})</option>
+                {dynamicCategories.map(cat => {
+                  const count = products.filter(p => p.Categoria && p.Categoria.toLowerCase() === cat.toLowerCase()).length;
+                  return (
+                    <option key={cat} value={cat}>
+                      {cat} {count > 0 ? `(${count})` : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          </div>
 
-      {/* Products Data Table Section with Independent Container Scroll */}
-      <div className="table-card">
-        {loading ? (
-          <div style={{ padding: '40px', textTransform: 'uppercase', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <i className="fa-solid fa-spinner fa-spin fa-2x"></i>
-            <p style={{ marginTop: '12px' }}>Cargando catálogo...</p>
-          </div>
-        ) : error ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--accent-red)' }}>
-            <i className="fa-solid fa-triangle-exclamation fa-2x"></i>
-            <p style={{ marginTop: '12px' }}>{error}</p>
-            <button type="button" className="btn-secondary" onClick={() => fetchProducts(true)} style={{ marginTop: '16px' }}>
-              Reintentar
-            </button>
-          </div>
-        ) : (
-          <div className="table-responsive">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th>N° Orden</th>
-                  <th>Imagen</th>
-                  <th>Nombre</th>
-                  <th>Categoría</th>
-                  <th>Color</th>
-                  <th>Precio</th>
-                  <th>Nuevo</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-dim)' }}>
-                      No se encontraron prendas registradas.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredProducts.map((p, index) => {
-                    const isNew = p.Nuevo === true || p.Nuevo === 'Si' || p.Nuevo === 'true';
-                    const orderDisplay = (p.numorden !== undefined && p.numorden !== null && p.numorden !== '')
-                      ? p.numorden
-                      : (p.numOrden !== undefined && p.numOrden !== null && p.numOrden !== '' ? p.numOrden : (index + 1));
-                    return (
-                      <tr key={p.id || index}>
-                        <td>
-                          {/* numorden badge visible & read-only */}
-                          <span className="numorden-badge">#{orderDisplay}</span>
-                        </td>
-                        <td>
-                          <div className="product-thumb-container">
-                            <img 
-                              src={p.imgReel0 || 'https://via.placeholder.com/80'} 
-                              alt={p.Nombre} 
-                              className="table-thumb"
-                              onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=100'; }}
-                            />
-                          </div>
-                        </td>
-                        <td>
-                          <strong>{p.Nombre}</strong>
-                        </td>
-                        <td>{p.Categoria || 'Casual'}</td>
-                        <td>{p.Color || '-'}</td>
-                        <td>
-                          <span style={{ color: 'var(--accent-gold)', fontWeight: '600' }}>
-                            S/. {p.Precio}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`badge-status ${isNew ? 'yes' : 'no'}`}>
-                            {isNew ? 'Sí' : 'No'}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="actions-cell">
-                            <button 
-                              type="button" 
-                              className="btn-icon edit" 
-                              title="Editar Producto"
-                              onClick={() => handleOpenEditModal(p, index)}
-                            >
-                              <i className="fa-solid fa-pen-to-square"></i>
-                            </button>
-                            <button 
-                              type="button" 
-                              className="btn-icon delete" 
-                              title="Eliminar Producto"
-                              onClick={() => setDeletingProduct(p)}
-                            >
-                              <i className="fa-solid fa-trash-can"></i>
-                            </button>
-                          </div>
+          {/* Products Data Table Section with Independent Container Scroll */}
+          <div className="table-card">
+            {loading ? (
+              <div style={{ padding: '40px', textTransform: 'uppercase', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <i className="fa-solid fa-spinner fa-spin fa-2x"></i>
+                <p style={{ marginTop: '12px' }}>Cargando catálogo...</p>
+              </div>
+            ) : error ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--accent-red)' }}>
+                <i className="fa-solid fa-triangle-exclamation fa-2x"></i>
+                <p style={{ marginTop: '12px' }}>{error}</p>
+                <button type="button" className="btn-secondary" onClick={() => fetchProducts(true)} style={{ marginTop: '16px' }}>
+                  Reintentar
+                </button>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>N° Orden</th>
+                      <th>Imagen</th>
+                      <th>Nombre</th>
+                      <th>Categoría</th>
+                      <th>Color</th>
+                      <th>Precio</th>
+                      <th>Nuevo</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProducts.length === 0 ? (
+                      <tr>
+                        <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-dim)' }}>
+                          No se encontraron prendas registradas.
                         </td>
                       </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                    ) : (
+                      filteredProducts.map((p, index) => {
+                        const isNew = p.Nuevo === true || p.Nuevo === 'Si' || p.Nuevo === 'true';
+                        const orderDisplay = (p.numorden !== undefined && p.numorden !== null && p.numorden !== '')
+                          ? p.numorden
+                          : (p.numOrden !== undefined && p.numOrden !== null && p.numOrden !== '' ? p.numOrden : (index + 1));
+                        return (
+                          <tr key={p.id || index}>
+                            <td>
+                              <span className="numorden-badge">#{orderDisplay}</span>
+                            </td>
+                            <td>
+                              <div className="product-thumb-container">
+                                <img 
+                                  src={p.imgReel0 || 'https://via.placeholder.com/80'} 
+                                  alt={p.Nombre} 
+                                  className="table-thumb"
+                                  onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=100'; }}
+                                />
+                              </div>
+                            </td>
+                            <td>
+                              <strong>{p.Nombre}</strong>
+                            </td>
+                            <td>{p.Categoria || 'Casual'}</td>
+                            <td>{p.Color || '-'}</td>
+                            <td>
+                              <span style={{ color: 'var(--accent-gold)', fontWeight: '600' }}>
+                                S/. {p.Precio}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`badge-status ${isNew ? 'yes' : 'no'}`}>
+                                {isNew ? 'Sí' : 'No'}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="actions-cell">
+                                <button 
+                                  type="button" 
+                                  className="btn-icon edit" 
+                                  title="Editar Producto"
+                                  onClick={() => handleOpenEditModal(p, index)}
+                                >
+                                  <i className="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button 
+                                  type="button" 
+                                  className="btn-icon delete" 
+                                  title="Eliminar Producto"
+                                  onClick={() => setDeletingProduct(p)}
+                                >
+                                  <i className="fa-solid fa-trash-can"></i>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
+
+      {/* VIEW 2: ORDER CLOSING COUNTDOWN CONFIGURATION */}
+      {activeTab === 'cierre' && (
+        <div className="table-card" style={{ padding: '32px', overflowY: 'auto' }}>
+          <div style={{ maxWidth: '680px', margin: '0 auto', width: '100%' }}>
+            <h2 style={{ fontSize: '1.4rem', color: 'var(--accent-gold)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <i className="fa-solid fa-stopwatch"></i> Configuración de Cierre de Pedidos & Cronómetro
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '28px' }}>
+              Define el ciclo semanal de recepción de pedidos. La tienda web mostrará automáticamente un reloj con la cuenta regresiva en vivo según estos días y horas.
+            </p>
+
+            <form onSubmit={handleSaveCierreConfig} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div className="form-group">
+                <label>Título del Cronómetro en la Web</label>
+                <input 
+                  type="text" 
+                  value={cierreConfig.titulo || ''}
+                  onChange={(e) => setCierreConfig({ ...cierreConfig, titulo: e.target.value })}
+                  placeholder="Ej: Cierre de Pedidos Semanal"
+                />
+              </div>
+
+              <div className="form-grid">
+                {/* Dia de Inicio */}
+                <div className="form-group">
+                  <label>Día de Inicio de Recepción</label>
+                  <select
+                    value={cierreConfig.diaInicio || 'Lunes'}
+                    onChange={(e) => setCierreConfig({ ...cierreConfig, diaInicio: e.target.value })}
+                  >
+                    <option value="Lunes">Lunes</option>
+                    <option value="Martes">Martes</option>
+                    <option value="Miércoles">Miércoles</option>
+                    <option value="Jueves">Jueves</option>
+                    <option value="Viernes">Viernes</option>
+                    <option value="Sábado">Sábado</option>
+                    <option value="Domingo">Domingo</option>
+                  </select>
+                </div>
+
+                {/* Hora de Inicio */}
+                <div className="form-group">
+                  <label>Hora de Inicio (24h)</label>
+                  <input 
+                    type="time" 
+                    value={cierreConfig.horaInicio || '08:00'}
+                    onChange={(e) => setCierreConfig({ ...cierreConfig, horaInicio: e.target.value })}
+                  />
+                </div>
+
+                {/* Dia de Cierre/Entrega */}
+                <div className="form-group">
+                  <label>Día de Cierre de Pedidos / Entrega</label>
+                  <select
+                    value={cierreConfig.diaFin || 'Viernes'}
+                    onChange={(e) => setCierreConfig({ ...cierreConfig, diaFin: e.target.value })}
+                  >
+                    <option value="Lunes">Lunes</option>
+                    <option value="Martes">Martes</option>
+                    <option value="Miércoles">Miércoles</option>
+                    <option value="Jueves">Jueves</option>
+                    <option value="Viernes">Viernes</option>
+                    <option value="Sábado">Sábado</option>
+                    <option value="Domingo">Domingo</option>
+                  </select>
+                </div>
+
+                {/* Hora de Cierre */}
+                <div className="form-group">
+                  <label>Hora de Cierre (24h)</label>
+                  <input 
+                    type="time" 
+                    value={cierreConfig.horaFin || '23:59'}
+                    onChange={(e) => setCierreConfig({ ...cierreConfig, horaFin: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+                <input 
+                  type="checkbox" 
+                  id="cierre-activo-check"
+                  checked={cierreConfig.activo !== false}
+                  onChange={(e) => setCierreConfig({ ...cierreConfig, activo: e.target.checked })}
+                  style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                />
+                <label htmlFor="cierre-activo-check" style={{ cursor: 'pointer', fontSize: '0.95rem', fontWeight: '500' }}>
+                  Mostrar cronómetro de cierre de pedidos en la tienda web
+                </label>
+              </div>
+
+              <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+                <button type="submit" className="btn-primary" disabled={cierreSaving}>
+                  {cierreSaving ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>}
+                  Guardar Configuración de Cierre
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal Add / Edit Form */}
       {isModalOpen && (
@@ -500,16 +683,16 @@ function App() {
                     />
                   </div>
 
-                  {/* Categoria */}
+                  {/* Categoria Dropdown with dynamic options */}
                   <div className="form-group">
                     <label>Categoría</label>
                     <select
                       value={formData.Categoria}
                       onChange={(e) => setFormData({ ...formData, Categoria: e.target.value })}
                     >
-                      <option value="Athleisure">Athleisure</option>
-                      <option value="Casual">Casual</option>
-                      <option value="Streetwear">Streetwear</option>
+                      {dynamicCategories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
                     </select>
                   </div>
 
