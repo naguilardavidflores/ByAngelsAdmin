@@ -34,7 +34,8 @@ function App() {
     imgReel4: '',
     imgReel5: '',
     imgReel6: '',
-    imgReel7: ''
+    imgReel7: '',
+    urlVideoPasarela: ''
   });
 
   // Delete Confirmation Modal State
@@ -290,7 +291,8 @@ function App() {
       imgReel4: '',
       imgReel5: '',
       imgReel6: '',
-      imgReel7: ''
+      imgReel7: '',
+      urlVideoPasarela: ''
     });
     setIsModalOpen(true);
   };
@@ -318,7 +320,8 @@ function App() {
       imgReel4: product.imgReel4 || '',
       imgReel5: product.imgReel5 || '',
       imgReel6: product.imgReel6 || '',
-      imgReel7: product.imgReel7 || ''
+      imgReel7: product.imgReel7 || '',
+      urlVideoPasarela: product.urlVideoPasarela || product.urlVideo || ''
     });
     setIsModalOpen(true);
   };
@@ -1390,6 +1393,21 @@ function App() {
                       <option value="No">No</option>
                     </select>
                   </div>
+                </div>
+
+                {/* Video URL Pasarela */}
+                <h3 className="images-section-title" style={{ marginTop: '20px' }}>🎬 Video de Pasarela (YouTube / Reel / MP4)</h3>
+                <div className="form-group" style={{ marginBottom: '20px' }}>
+                  <label>URL del Video de la Pasarela</label>
+                  <input 
+                    type="url" 
+                    placeholder="Ej: https://www.youtube.com/shorts/... o https://tu-servidor.com/video.mp4"
+                    value={formData.urlVideoPasarela}
+                    onChange={(e) => setFormData({ ...formData, urlVideoPasarela: e.target.value })}
+                  />
+                  <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
+                    Pega el enlace de un video en YouTube, YouTube Shorts, Reels o un enlace directo a archivo MP4. Se mostrará en el botón colgado rotatorio de la tienda.
+                  </small>
                 </div>
 
                 {/* Images Reel URLs 0 to 7 with Real-Time Preview */}
