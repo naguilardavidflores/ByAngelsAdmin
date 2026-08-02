@@ -1258,39 +1258,43 @@ function App() {
 
         {/* VIEW 4: NEWS & REELS PROMOTIONS MANAGER (PINTEREST & GOOGLE DRIVE) */}
         {activeTab === 'noticias' && (
-          <div className="view-container">
-            <div className="cierre-config-card">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <i className="fa-solid fa-newspaper" style={{ fontSize: '1.6rem', color: 'var(--accent-gold)' }}></i>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Anuncios y Noticias Promocionales</h3>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    Configura la lista de imágenes para los reels de anuncios en el modal de noticias de la web.
+          <div className="view-container news-manager-container">
+            <div className="cierre-config-card news-config-card-sticky">
+              {/* STICKY TOP HEADER */}
+              <div className="news-manager-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <i className="fa-solid fa-newspaper" style={{ fontSize: '1.6rem', color: 'var(--accent-gold)' }}></i>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Anuncios y Noticias Promocionales</h3>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      Configura la lista de imágenes para los reels de anuncios en el modal de noticias de la web.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="info-banner" style={{ background: 'rgba(66, 133, 244, 0.12)', border: '1px solid rgba(66, 133, 244, 0.3)', borderRadius: 'var(--radius-md)', padding: '10px 14px', marginTop: '12px' }}>
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: '#8ab4f8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-lightbulb" style={{ fontSize: '1.1rem', color: '#fbbc04' }}></i>
+                    <span>
+                      <strong>Soporte para Pinterest y Google Drive:</strong> Enlaces de <strong>Pinterest</strong> (<code>https://i.pinimg.com/...</code>) o <strong>Google Drive</strong> (<code>https://drive.google.com/file/d/.../view</code>) se convertirá a imagen directa.
+                    </span>
                   </p>
                 </div>
               </div>
 
-              <div className="info-banner" style={{ background: 'rgba(66, 133, 244, 0.12)', border: '1px solid rgba(66, 133, 244, 0.3)', borderRadius: 'var(--radius-md)', padding: '14px 18px', marginBottom: '24px' }}>
-                <p style={{ margin: 0, fontSize: '0.88rem', color: '#8ab4f8', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <i className="fa-solid fa-lightbulb" style={{ fontSize: '1.2rem', color: '#fbbc04' }}></i>
-                  <span>
-                    <strong>Soporte para Pinterest y Google Drive:</strong> Puedes pegar directamente enlaces de <strong>Pinterest</strong> (<code>https://i.pinimg.com/...</code>) o enlaces de compartir de <strong>Google Drive</strong> (<code>https://drive.google.com/file/d/1ABC.../view</code>). El sistema los convertirá automáticamente a imagen directa.
-                  </span>
-                </p>
-              </div>
-
-              <form onSubmit={handleSaveNoticias}>
-                {noticesList.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px 20px', background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-glass)' }}>
-                    <i className="fa-solid fa-images" style={{ fontSize: '2.5rem', color: 'var(--text-muted)', marginBottom: '12px' }}></i>
-                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>No hay anuncios ni noticias registrados aún.</p>
-                    <button type="button" className="btn-secondary" onClick={handleAddNoticeUrl} style={{ marginTop: '14px' }}>
-                      <i className="fa-solid fa-plus"></i> Agregar Primera Noticia
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    {noticesList.map((url, idx) => {
+              <form onSubmit={handleSaveNoticias} className="news-manager-form">
+                {/* MIDDLE SCROLLABLE LIST OF CARDS */}
+                <div className="news-cards-scroll-area">
+                  {noticesList.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-glass)' }}>
+                      <i className="fa-solid fa-images" style={{ fontSize: '2.5rem', color: 'var(--text-muted)', marginBottom: '12px' }}></i>
+                      <p style={{ margin: 0, color: 'var(--text-muted)' }}>No hay anuncios ni noticias registrados aún.</p>
+                      <button type="button" className="btn-secondary" onClick={handleAddNoticeUrl} style={{ marginTop: '14px' }}>
+                        <i className="fa-solid fa-plus"></i> Agregar Primera Noticia
+                      </button>
+                    </div>
+                  ) : (
+                    noticesList.map((url, idx) => {
                       const badge = getUrlTypeBadge(url);
                       return (
                         <div key={idx} className="news-input-card">
@@ -1342,11 +1346,12 @@ function App() {
                           </button>
                         </div>
                       );
-                    })}
-                  </div>
-                )}
+                    })
+                  )}
+                </div>
 
-                <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {/* STICKY BOTTOM ACTION BAR */}
+                <div className="news-manager-sticky-footer">
                   <button type="button" className="btn-secondary" onClick={handleAddNoticeUrl}>
                     <i className="fa-solid fa-plus"></i> Agregar Otra Imagen de Noticia
                   </button>

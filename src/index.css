@@ -1342,3 +1342,74 @@ body {
     border-radius: 8px !important;
   }
 }
+
+/* News Manager Flex Layout with Sticky Top & Bottom Bars */
+.news-manager-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  max-height: calc(100vh - 120px);
+}
+
+.news-config-card-sticky {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  padding: 20px 24px 0 24px;
+}
+
+.news-manager-header {
+  flex-shrink: 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.news-manager-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.news-cards-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 4px 16px 0;
+}
+
+.news-cards-scroll-area::-webkit-scrollbar {
+  width: 6px;
+}
+
+.news-cards-scroll-area::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.news-cards-scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.35);
+  border-radius: 4px;
+}
+
+.news-manager-sticky-footer {
+  flex-shrink: 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--border-glass);
+  background: rgba(18, 18, 28, 0.95);
+  backdrop-filter: blur(10px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Fix for Table Headers on Mobile View */
+.custom-table th {
+  background: rgba(12, 12, 20, 0.95);
+  color: var(--accent-gold);
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.5px;
+  padding: 14px 12px;
+  border-bottom: 2px solid var(--border-glass);
+  white-space: nowrap;
+}
