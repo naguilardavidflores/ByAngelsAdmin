@@ -1398,15 +1398,15 @@ function App() {
                 {/* Video URL Pasarela */}
                 <h3 className="images-section-title" style={{ marginTop: '20px' }}>🎬 Video de Pasarela (YouTube / Reel / MP4)</h3>
                 <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label>URL del Video de la Pasarela</label>
+                  <label>URL del Video de la Pasarela (Google Drive / Pinterest / YouTube / MP4)</label>
                   <input 
                     type="url" 
-                    placeholder="Ej: https://www.youtube.com/shorts/... o https://tu-servidor.com/video.mp4"
+                    placeholder="Ej: https://drive.google.com/file/d/.../view o YouTube / Pinterest / MP4"
                     value={formData.urlVideoPasarela}
                     onChange={(e) => setFormData({ ...formData, urlVideoPasarela: e.target.value })}
                   />
-                  <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
-                    Pega el enlace de un video en YouTube, YouTube Shorts, Reels o un enlace directo a archivo MP4. Se mostrará en el botón colgado rotatorio de la tienda.
+                  <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '4px', display: 'block', lineHeight: 1.4 }}>
+                    💡 <strong>Para Google Drive:</strong> Asegúrate de que los permisos del archivo estén configurados como <u>"Cualquier persona con el enlace"</u> (Público) en Google Drive para que se pueda incrustar sin pedir inicio de sesión.
                   </small>
                 </div>
 
