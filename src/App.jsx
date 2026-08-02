@@ -50,7 +50,7 @@ function App() {
     diaFin2: 'Sábado',
     horaFin2: '23:59',
 
-    titulo: 'Cierre de Pedidos Semanal',
+    titulo: 'Cierre de Pedidos',
     activo: true
   });
   const [cierreSaving, setCierreSaving] = useState(false);
