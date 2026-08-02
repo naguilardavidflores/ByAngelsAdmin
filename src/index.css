@@ -827,26 +827,82 @@ body {
 }
 
 /* Responsive Overrides */
-@media (max-width: 900px) {
-  .admin-layout {
-    flex-direction: column;
-  }
-  .admin-sidebar {
-    width: 100%;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--border-glass);
-    padding: 14px 20px;
-  }
-  .sidebar-menu {
-    flex-direction: row;
-    margin-top: 10px;
-    overflow-x: auto;
-  }
-  .sidebar-footer {
-    display: none;
-  }
-  .admin-main-content {
-    padding: 16px;
-  }
+/* Discount Rules Manager Styling */
+.discount-range-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  margin-bottom: 20px;
+  transition: var(--transition);
+}
+
+.discount-range-card:hover {
+  border-color: var(--border-highlight);
+}
+
+.discount-range-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.discount-range-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tiers-table-container {
+  margin-top: 14px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  border: 1px solid var(--border-glass);
+}
+
+.tier-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.tier-row:last-child {
+  margin-bottom: 0;
+}
+
+.tier-row input {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font-size: 0.88rem;
+}
+
+.btn-add-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--accent-gold);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: var(--transition);
+}
+
+.btn-add-tier:hover {
+  background: rgba(212, 175, 55, 0.25);
 }

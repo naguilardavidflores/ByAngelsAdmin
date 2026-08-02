@@ -6,7 +6,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Navigation Menu Tabs: 'catalog' | 'cierre'
+  // Navigation Menu Tabs: 'catalog' | 'cierre' | 'descuentos'
   const [activeTab, setActiveTab] = useState('catalog');
 
   // Search and Filter controls
@@ -54,6 +54,23 @@ function App() {
     activo: true
   });
   const [cierreSaving, setCierreSaving] = useState(false);
+
+  // Price-Range Volume Discount Rules State
+  const [descuentosRules, setDescuentosRules] = useState([
+    {
+      id: 'rango_1',
+      nombre: 'Rango 37 - 40 S/.',
+      rangoInicio: 37.00,
+      rangoFin: 40.00,
+      activo: true,
+      escalones: [
+        { cantidadMinima: 3, precioOferta: 33.30 },
+        { cantidadMinima: 6, precioOferta: 30.00 },
+        { cantidadMinima: 12, precioOferta: 28.00 }
+      ]
+    }
+  ]);
+  const [descuentosSaving, setDescuentosSaving] = useState(false);
 
   // Toast Notification State
   const [toast, setToast] = useState(null);
@@ -155,9 +172,33 @@ function App() {
     }
   };
 
+  // Fetch Price-Range Volume Discount Rules
+  const fetchDescuentosConfig = async () => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/descuentos`, {
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setDescuentosRules(data);
+          try {
+            localStorage.setItem('byangels_descuentos_rules', JSON.stringify(data));
+          } catch (e) {}
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch descuentos config:', err);
+    }
+  };
+
   useEffect(() => {
     fetchProducts(false);
     fetchCierreConfig();
+    fetchDescuentosConfig();
   }, []);
 
   // Helper to normalize category names cleanly (e.g. "streetwear" -> "Streetwear")
@@ -300,6 +341,100 @@ function App() {
     }
   };
 
+  // DISCOUNT RULES MANAGEMENT HANDLERS
+  const handleAddRange = () => {
+    const newId = `rango_${Date.now()}`;
+    const newRange = {
+      id: newId,
+      nombre: 'Nuevo Rango de Precios',
+      rangoInicio: 41.00,
+      rangoFin: 50.00,
+      activo: true,
+      escalones: [
+        { cantidadMinima: 3, precioOferta: 37.00 }
+      ]
+    };
+    setDescuentosRules([...descuentosRules, newRange]);
+  };
+
+  const handleDeleteRange = (rangeId) => {
+    setDescuentosRules(descuentosRules.filter(r => r.id !== rangeId));
+  };
+
+  const handleUpdateRangeField = (rangeId, field, value) => {
+    setDescuentosRules(descuentosRules.map(r => {
+      if (r.id === rangeId) {
+        return { ...r, [field]: value };
+      }
+      return r;
+    }));
+  };
+
+  const handleAddTier = (rangeId) => {
+    setDescuentosRules(descuentosRules.map(r => {
+      if (r.id === rangeId) {
+        const lastTier = r.escalones[r.escalones.length - 1];
+        const nextQty = lastTier ? lastTier.cantidadMinima + 3 : 3;
+        const nextPrice = lastTier ? Math.max(1, lastTier.precioOferta - 3) : 30;
+        return {
+          ...r,
+          escalones: [...r.escalones, { cantidadMinima: nextQty, precioOferta: nextPrice }]
+        };
+      }
+      return r;
+    }));
+  };
+
+  const handleUpdateTierField = (rangeId, tierIndex, field, value) => {
+    setDescuentosRules(descuentosRules.map(r => {
+      if (r.id === rangeId) {
+        const newTiers = [...r.escalones];
+        newTiers[tierIndex] = { ...newTiers[tierIndex], [field]: Number(value) || 0 };
+        return { ...r, escalones: newTiers };
+      }
+      return r;
+    }));
+  };
+
+  const handleDeleteTier = (rangeId, tierIndex) => {
+    setDescuentosRules(descuentosRules.map(r => {
+      if (r.id === rangeId) {
+        return {
+          ...r,
+          escalones: r.escalones.filter((_, idx) => idx !== tierIndex)
+        };
+      }
+      return r;
+    }));
+  };
+
+  // Save Discount Rules to API
+  const handleSaveDescuentos = async (e) => {
+    e.preventDefault();
+    setDescuentosSaving(true);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/descuentos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(descuentosRules)
+      });
+      if (!res.ok) throw new Error('Error al guardar reglas de descuentos');
+      const updated = await res.json();
+      setDescuentosRules(updated);
+      
+      try {
+        localStorage.setItem('byangels_descuentos_rules', JSON.stringify(updated));
+      } catch (saveErr) {}
+
+      showToast('¡Reglas de descuentos por rango y volumen guardadas con éxito!');
+    } catch (err) {
+      console.error('Descuentos save error:', err);
+      showToast('Error al guardar reglas de descuentos', 'error');
+    } finally {
+      setDescuentosSaving(false);
+    }
+  };
+
   // Delete product confirmation
   const handleConfirmDelete = async () => {
     if (!deletingProduct) return;
@@ -361,6 +496,15 @@ function App() {
               <i className="fa-solid fa-stopwatch"></i>
               <span>Cierre de Pedidos</span>
             </button>
+
+            <button 
+              type="button" 
+              className={`sidebar-link ${activeTab === 'descuentos' ? 'active' : ''}`}
+              onClick={() => setActiveTab('descuentos')}
+            >
+              <i className="fa-solid fa-tags"></i>
+              <span>Reglas de Descuentos</span>
+            </button>
           </nav>
         </div>
 
@@ -380,11 +524,15 @@ function App() {
         {/* Top Header Bar inside Main Workspace */}
         <header className="main-header-bar">
           <div className="page-title-group">
-            <h2>{activeTab === 'catalog' ? 'Catálogo de Productos' : 'Cierre de Pedidos & Cronómetro'}</h2>
+            <h2>
+              {activeTab === 'catalog' && 'Catálogo de Productos'}
+              {activeTab === 'cierre' && 'Cierre de Pedidos & Cronómetro'}
+              {activeTab === 'descuentos' && 'Reglas de Descuentos por Rango de Precio'}
+            </h2>
             <p>
-              {activeTab === 'catalog' 
-                ? 'Gestiona la lista de prendas, imágenes, precios y estado' 
-                : 'Configura las 2 fechas/entregas semanales de pedidos para la tienda web'}
+              {activeTab === 'catalog' && 'Gestiona la lista de prendas, imágenes, precios y estado'}
+              {activeTab === 'cierre' && 'Configura las 2 fechas/entregas semanales de pedidos para la tienda web'}
+              {activeTab === 'descuentos' && 'Configura rangos de precio base y descuentos por cantidad comprada'}
             </p>
           </div>
 
@@ -403,6 +551,11 @@ function App() {
                   <i className="fa-solid fa-plus"></i> Agregar Producto
                 </button>
               </>
+            )}
+            {activeTab === 'descuentos' && (
+              <button type="button" className="btn-primary" onClick={handleAddRange}>
+                <i className="fa-solid fa-plus"></i> Agregar Nuevo Rango
+              </button>
             )}
           </div>
         </header>
@@ -600,7 +753,7 @@ function App() {
                     type="text" 
                     value={cierreConfig.titulo || ''}
                     onChange={(e) => setCierreConfig({ ...cierreConfig, titulo: e.target.value })}
-                    placeholder="Ej: Cierre de Pedidos Semanal"
+                    placeholder="Ej: Cierre de Pedidos"
                   />
                 </div>
 
@@ -737,6 +890,142 @@ function App() {
                   <button type="submit" className="btn-primary" disabled={cierreSaving}>
                     {cierreSaving ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>}
                     Guardar Configuración de Cierres (2 Entregas)
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 3: PRICE-RANGE VOLUME DISCOUNT RULES MANAGER */}
+        {activeTab === 'descuentos' && (
+          <div className="table-card" style={{ padding: '28px', overflowY: 'auto' }}>
+            <div style={{ maxWidth: '960px', margin: '0 auto', width: '100%' }}>
+              <form onSubmit={handleSaveDescuentos}>
+                {descuentosRules.map((rango, rIdx) => (
+                  <div className="discount-range-card" key={rango.id || rIdx}>
+                    <div className="discount-range-header">
+                      <div className="discount-range-title">
+                        <i className="fa-solid fa-tags"></i>
+                        <span>{rango.nombre || `Rango ${rIdx + 1}`}</span>
+                      </div>
+                      <button 
+                        type="button" 
+                        className="btn-icon delete" 
+                        onClick={() => handleDeleteRange(rango.id)}
+                        title="Eliminar este rango de precios"
+                      >
+                        <i className="fa-solid fa-trash-can"></i>
+                      </button>
+                    </div>
+
+                    <div className="form-grid" style={{ marginBottom: '16px' }}>
+                      <div className="form-group">
+                        <label>Nombre Identificador del Rango</label>
+                        <input 
+                          type="text" 
+                          value={rango.nombre || ''}
+                          onChange={(e) => handleUpdateRangeField(rango.id, 'nombre', e.target.value)}
+                          placeholder="Ej: Rango 37 - 40 S/."
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Precio Base Mínimo (S/.)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={rango.rangoInicio}
+                          onChange={(e) => handleUpdateRangeField(rango.id, 'rangoInicio', Number(e.target.value))}
+                          placeholder="37.00"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Precio Base Máximo (S/.)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={rango.rangoFin}
+                          onChange={(e) => handleUpdateRangeField(rango.id, 'rangoFin', Number(e.target.value))}
+                          placeholder="40.00"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Quantity Tiers inside Range */}
+                    <div className="tiers-table-container">
+                      <label style={{ fontSize: '0.82rem', color: 'var(--accent-gold)', fontWeight: '600', marginBottom: '10px', display: 'block' }}>
+                        📊 Escalones de Descuento por Cantidad de Prendas en este Rango:
+                      </label>
+
+                      {rango.escalones.map((tier, tIdx) => {
+                        const savingsPercent = rango.rangoFin > 0 
+                          ? Math.round(((rango.rangoFin - tier.precioOferta) / rango.rangoFin) * 100)
+                          : 0;
+                        return (
+                          <div className="tier-row" key={tIdx}>
+                            <div style={{ flex: 1 }}>
+                              <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>A partir de (Prendas):</label>
+                              <input 
+                                type="number" 
+                                min="1"
+                                value={tier.cantidadMinima}
+                                onChange={(e) => handleUpdateTierField(rango.id, tIdx, 'cantidadMinima', e.target.value)}
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+
+                            <div style={{ flex: 1 }}>
+                              <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Precio Oferta c/u (S/.):</label>
+                              <input 
+                                type="number" 
+                                step="0.10"
+                                value={tier.precioOferta}
+                                onChange={(e) => handleUpdateTierField(rango.id, tIdx, 'precioOferta', e.target.value)}
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+
+                            <div style={{ minWidth: '100px', textAlign: 'center', paddingTop: '16px' }}>
+                              <span className="badge-status yes" style={{ background: 'rgba(212, 175, 55, 0.15)', color: 'var(--accent-gold)', border: '1px solid var(--accent-gold)' }}>
+                                -{savingsPercent}% Dcto
+                              </span>
+                            </div>
+
+                            <div style={{ paddingTop: '16px' }}>
+                              <button 
+                                type="button" 
+                                className="btn-icon delete"
+                                onClick={() => handleDeleteTier(rango.id, tIdx)}
+                                title="Eliminar escalón"
+                              >
+                                <i className="fa-solid fa-minus"></i>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      <button 
+                        type="button" 
+                        className="btn-add-tier" 
+                        onClick={() => handleAddTier(rango.id)}
+                      >
+                        <i className="fa-solid fa-plus"></i> Agregar Escalón de Descuento
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <button type="button" className="btn-secondary" onClick={handleAddRange}>
+                    <i className="fa-solid fa-folder-plus"></i> Agregar Otro Rango de Precios
+                  </button>
+
+                  <button type="submit" className="btn-primary" disabled={descuentosSaving}>
+                    {descuentosSaving ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>}
+                    Guardar Reglas de Descuentos
                   </button>
                 </div>
               </form>
