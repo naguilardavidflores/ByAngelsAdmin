@@ -38,12 +38,18 @@ function App() {
   // Delete Confirmation Modal State
   const [deletingProduct, setDeletingProduct] = useState(null);
 
-  // Order Closing Countdown Config State (Cierre de Pedidos)
+  // Order Closing Countdown Config State (2 Entregas / Cierres semanales)
   const [cierreConfig, setCierreConfig] = useState({
-    diaInicio: 'Lunes',
-    horaInicio: '08:00',
-    diaFin: 'Viernes',
-    horaFin: '23:59',
+    diaInicio1: 'Lunes',
+    horaInicio1: '08:00',
+    diaFin1: 'Miércoles',
+    horaFin1: '23:59',
+
+    diaInicio2: 'Jueves',
+    horaInicio2: '08:00',
+    diaFin2: 'Sábado',
+    horaFin2: '23:59',
+
     titulo: 'Cierre de Pedidos Semanal',
     activo: true
   });
@@ -142,7 +148,7 @@ function App() {
       });
       if (res.ok) {
         const data = await res.json();
-        setCierreConfig(data);
+        setCierreConfig(prev => ({ ...prev, ...data }));
       }
     } catch (err) {
       console.warn('Could not fetch cierre config:', err);
@@ -260,7 +266,7 @@ function App() {
     }
   };
 
-  // Save Order Closing Schedule Configuration
+  // Save Order Closing Schedule Configuration (2 Entregas)
   const handleSaveCierreConfig = async (e) => {
     e.preventDefault();
     setCierreSaving(true);
@@ -272,11 +278,11 @@ function App() {
       });
       if (!res.ok) throw new Error('Error al guardar horario');
       const updated = await res.json();
-      setCierreConfig(updated);
-      showToast('¡Horario de cierre de pedidos actualizado!');
+      setCierreConfig(prev => ({ ...prev, ...updated }));
+      showToast('¡Horario de las 2 entregas de pedidos actualizado!');
     } catch (err) {
       console.error('Cierre save error:', err);
-      showToast('Error al guardar configuración de cierre', 'error');
+      showToast('Error al guardar configuración de cierres', 'error');
     } finally {
       setCierreSaving(false);
     }
@@ -307,342 +313,425 @@ function App() {
   });
 
   return (
-    <div className="admin-app">
-      {/* Top Navbar Header with Navigation Tabs Menu */}
-      <header className="admin-header">
-        <div className="brand-wrapper">
-          <img 
-            src="https://i.pinimg.com/736x/89/3e/a5/893ea5e4b77f98d75225c5d012431718.jpg" 
-            alt="ByAngels Logo" 
-            className="brand-logo"
-          />
-          <div className="brand-title-group">
-            <h1>ByAngels Admin</h1>
-            <p>Panel de Gestión Integral</p>
-          </div>
-        </div>
-
-        {/* Navigation Menu Tabs */}
-        <div className="nav-tabs-wrapper">
-          <button 
-            type="button"
-            className={`nav-tab-btn ${activeTab === 'catalog' ? 'active' : ''}`}
-            onClick={() => setActiveTab('catalog')}
-          >
-            <i className="fa-solid fa-shirt"></i> Catálogo
-          </button>
-          <button 
-            type="button"
-            className={`nav-tab-btn ${activeTab === 'cierre' ? 'active' : ''}`}
-            onClick={() => setActiveTab('cierre')}
-          >
-            <i className="fa-solid fa-stopwatch"></i> Cierre de Pedidos
-          </button>
-        </div>
-
-        <div className="header-actions">
-          {activeTab === 'catalog' && (
-            <>
-              <button 
-                type="button" 
-                className="btn-secondary" 
-                onClick={() => fetchProducts(true)}
-                title="Actualizar datos desde la Base de Datos"
-              >
-                <i className="fa-solid fa-rotate"></i> Actualizar
-              </button>
-              <button type="button" className="btn-primary" onClick={handleOpenAddModal}>
-                <i className="fa-solid fa-plus"></i> Agregar Producto
-              </button>
-            </>
-          )}
-        </div>
-      </header>
-
-      {/* VIEW 1: CATALOGUE MANAGEMENT */}
-      {activeTab === 'catalog' && (
-        <>
-          {/* Dashboard Metrics Grid */}
-          <div className="metrics-grid">
-            <div className="metric-card">
-              <div className="metric-icon-box gold">
-                <i className="fa-solid fa-shirt"></i>
-              </div>
-              <div className="metric-info">
-                <label>Total Prendas</label>
-                <h2>{products.length}</h2>
-              </div>
-            </div>
-
-            <div className="metric-card">
-              <div className="metric-icon-box green">
-                <i className="fa-solid fa-sparkles"></i>
-              </div>
-              <div className="metric-info">
-                <label>Nuevos Ingresos</label>
-                <h2>{products.filter(p => p.Nuevo === true || p.Nuevo === 'Si' || p.Nuevo === 'true').length}</h2>
-              </div>
-            </div>
-
-            <div className="metric-card">
-              <div className="metric-icon-box pink">
-                <i className="fa-solid fa-fire"></i>
-              </div>
-              <div className="metric-info">
-                <label>Tendencia</label>
-                <h2>{products.filter(p => p.Tendencia === true || p.Tendencia === 'Si' || p.Tendencia === 'true').length}</h2>
-              </div>
-            </div>
-
-            <div className="metric-card">
-              <div className="metric-icon-box cyan">
-                <i className="fa-solid fa-tags"></i>
-              </div>
-              <div className="metric-info">
-                <label>Categorías</label>
-                <h2>{dynamicCategories.length}</h2>
-              </div>
+    <div className="admin-layout">
+      {/* Left Sidebar Navigation Menu */}
+      <aside className="admin-sidebar">
+        <div>
+          <div className="sidebar-brand">
+            <img 
+              src="https://i.pinimg.com/736x/89/3e/a5/893ea5e4b77f98d75225c5d012431718.jpg" 
+              alt="ByAngels Logo" 
+              className="sidebar-brand-logo"
+            />
+            <div className="sidebar-brand-titles">
+              <h1>ByAngels</h1>
+              <p>Panel Administrativo</p>
             </div>
           </div>
 
-          {/* Control Bar: Search & Dynamic Category Filter */}
-          <div className="controls-bar">
-            <div className="search-box">
-              <i className="fa-solid fa-magnifying-glass"></i>
-              <input
-                type="text"
-                placeholder="Buscar prenda por nombre..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+          <nav className="sidebar-menu">
+            <span className="sidebar-menu-label">Navegación</span>
 
-            <div className="filter-group">
-              {/* Dynamic Categories Dropdown */}
-              <select 
-                className="select-filter"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option value="">Todas las Categorías ({products.length})</option>
-                {dynamicCategories.map(cat => {
-                  const count = products.filter(p => p.Categoria && p.Categoria.toLowerCase() === cat.toLowerCase()).length;
-                  return (
-                    <option key={cat} value={cat}>
-                      {cat} {count > 0 ? `(${count})` : ''}
-                    </option>
-                  );
-                })}
-              </select>
+            <button 
+              type="button" 
+              className={`sidebar-link ${activeTab === 'catalog' ? 'active' : ''}`}
+              onClick={() => setActiveTab('catalog')}
+            >
+              <i className="fa-solid fa-shirt"></i>
+              <span>Catálogo de Productos</span>
+            </button>
+
+            <button 
+              type="button" 
+              className={`sidebar-link ${activeTab === 'cierre' ? 'active' : ''}`}
+              onClick={() => setActiveTab('cierre')}
+            >
+              <i className="fa-solid fa-stopwatch"></i>
+              <span>Cierre de Pedidos</span>
+            </button>
+          </nav>
+        </div>
+
+        <div className="sidebar-footer">
+          <div className="sidebar-user-badge">
+            <div className="sidebar-user-avatar">BA</div>
+            <div className="sidebar-user-info">
+              <span>ByAngels Admin</span>
+              <small>Sistema Conectado</small>
             </div>
           </div>
+        </div>
+      </aside>
 
-          {/* Products Data Table Section with Independent Container Scroll */}
-          <div className="table-card">
-            {loading ? (
-              <div style={{ padding: '40px', textTransform: 'uppercase', textAlign: 'center', color: 'var(--text-muted)' }}>
-                <i className="fa-solid fa-spinner fa-spin fa-2x"></i>
-                <p style={{ marginTop: '12px' }}>Cargando catálogo...</p>
-              </div>
-            ) : error ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--accent-red)' }}>
-                <i className="fa-solid fa-triangle-exclamation fa-2x"></i>
-                <p style={{ marginTop: '12px' }}>{error}</p>
-                <button type="button" className="btn-secondary" onClick={() => fetchProducts(true)} style={{ marginTop: '16px' }}>
-                  Reintentar
+      {/* Main Content Workspace */}
+      <main className="admin-main-content">
+        {/* Top Header Bar inside Main Workspace */}
+        <header className="main-header-bar">
+          <div className="page-title-group">
+            <h2>{activeTab === 'catalog' ? 'Catálogo de Productos' : 'Cierre de Pedidos & Cronómetro'}</h2>
+            <p>
+              {activeTab === 'catalog' 
+                ? 'Gestiona la lista de prendas, imágenes, precios y estado' 
+                : 'Configura las 2 fechas/entregas semanales de pedidos para la tienda web'}
+            </p>
+          </div>
+
+          <div className="header-actions">
+            {activeTab === 'catalog' && (
+              <>
+                <button 
+                  type="button" 
+                  className="btn-secondary" 
+                  onClick={() => fetchProducts(true)}
+                  title="Actualizar datos desde la Base de Datos"
+                >
+                  <i className="fa-solid fa-rotate"></i> Actualizar
                 </button>
-              </div>
-            ) : (
-              <div className="table-responsive">
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>N° Orden</th>
-                      <th>Imagen</th>
-                      <th>Nombre</th>
-                      <th>Categoría</th>
-                      <th>Color</th>
-                      <th>Precio</th>
-                      <th>Nuevo</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredProducts.length === 0 ? (
-                      <tr>
-                        <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-dim)' }}>
-                          No se encontraron prendas registradas.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredProducts.map((p, index) => {
-                        const isNew = p.Nuevo === true || p.Nuevo === 'Si' || p.Nuevo === 'true';
-                        const orderDisplay = (p.numorden !== undefined && p.numorden !== null && p.numorden !== '')
-                          ? p.numorden
-                          : (p.numOrden !== undefined && p.numOrden !== null && p.numOrden !== '' ? p.numOrden : (index + 1));
-                        return (
-                          <tr key={p.id || index}>
-                            <td>
-                              <span className="numorden-badge">#{orderDisplay}</span>
-                            </td>
-                            <td>
-                              <div className="product-thumb-container">
-                                <img 
-                                  src={p.imgReel0 || 'https://via.placeholder.com/80'} 
-                                  alt={p.Nombre} 
-                                  className="table-thumb"
-                                  onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=100'; }}
-                                />
-                              </div>
-                            </td>
-                            <td>
-                              <strong>{p.Nombre}</strong>
-                            </td>
-                            <td>{p.Categoria || 'Casual'}</td>
-                            <td>{p.Color || '-'}</td>
-                            <td>
-                              <span style={{ color: 'var(--accent-gold)', fontWeight: '600' }}>
-                                S/. {p.Precio}
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`badge-status ${isNew ? 'yes' : 'no'}`}>
-                                {isNew ? 'Sí' : 'No'}
-                              </span>
-                            </td>
-                            <td>
-                              <div className="actions-cell">
-                                <button 
-                                  type="button" 
-                                  className="btn-icon edit" 
-                                  title="Editar Producto"
-                                  onClick={() => handleOpenEditModal(p, index)}
-                                >
-                                  <i className="fa-solid fa-pen-to-square"></i>
-                                </button>
-                                <button 
-                                  type="button" 
-                                  className="btn-icon delete" 
-                                  title="Eliminar Producto"
-                                  onClick={() => setDeletingProduct(p)}
-                                >
-                                  <i className="fa-solid fa-trash-can"></i>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                <button type="button" className="btn-primary" onClick={handleOpenAddModal}>
+                  <i className="fa-solid fa-plus"></i> Agregar Producto
+                </button>
+              </>
             )}
           </div>
-        </>
-      )}
+        </header>
 
-      {/* VIEW 2: ORDER CLOSING COUNTDOWN CONFIGURATION */}
-      {activeTab === 'cierre' && (
-        <div className="table-card" style={{ padding: '32px', overflowY: 'auto' }}>
-          <div style={{ maxWidth: '680px', margin: '0 auto', width: '100%' }}>
-            <h2 style={{ fontSize: '1.4rem', color: 'var(--accent-gold)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <i className="fa-solid fa-stopwatch"></i> Configuración de Cierre de Pedidos & Cronómetro
-            </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '28px' }}>
-              Define el ciclo semanal de recepción de pedidos. La tienda web mostrará automáticamente un reloj con la cuenta regresiva en vivo según estos días y horas.
-            </p>
+        {/* VIEW 1: CATALOGUE MANAGEMENT */}
+        {activeTab === 'catalog' && (
+          <>
+            {/* Dashboard Metrics Grid */}
+            <div className="metrics-grid">
+              <div className="metric-card">
+                <div className="metric-icon-box gold">
+                  <i className="fa-solid fa-shirt"></i>
+                </div>
+                <div className="metric-info">
+                  <label>Total Prendas</label>
+                  <h2>{products.length}</h2>
+                </div>
+              </div>
 
-            <form onSubmit={handleSaveCierreConfig} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div className="form-group">
-                <label>Título del Cronómetro en la Web</label>
-                <input 
-                  type="text" 
-                  value={cierreConfig.titulo || ''}
-                  onChange={(e) => setCierreConfig({ ...cierreConfig, titulo: e.target.value })}
-                  placeholder="Ej: Cierre de Pedidos Semanal"
+              <div className="metric-card">
+                <div className="metric-icon-box green">
+                  <i className="fa-solid fa-sparkles"></i>
+                </div>
+                <div className="metric-info">
+                  <label>Nuevos Ingresos</label>
+                  <h2>{products.filter(p => p.Nuevo === true || p.Nuevo === 'Si' || p.Nuevo === 'true').length}</h2>
+                </div>
+              </div>
+
+              <div className="metric-card">
+                <div className="metric-icon-box pink">
+                  <i className="fa-solid fa-fire"></i>
+                </div>
+                <div className="metric-info">
+                  <label>Tendencia</label>
+                  <h2>{products.filter(p => p.Tendencia === true || p.Tendencia === 'Si' || p.Tendencia === 'true').length}</h2>
+                </div>
+              </div>
+
+              <div className="metric-card">
+                <div className="metric-icon-box cyan">
+                  <i className="fa-solid fa-tags"></i>
+                </div>
+                <div className="metric-info">
+                  <label>Categorías</label>
+                  <h2>{dynamicCategories.length}</h2>
+                </div>
+              </div>
+            </div>
+
+            {/* Control Bar: Search & Dynamic Category Filter */}
+            <div className="controls-bar">
+              <div className="search-box">
+                <i className="fa-solid fa-magnifying-glass"></i>
+                <input
+                  type="text"
+                  placeholder="Buscar prenda por nombre..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
 
-              <div className="form-grid">
-                {/* Dia de Inicio */}
-                <div className="form-group">
-                  <label>Día de Inicio de Recepción</label>
-                  <select
-                    value={cierreConfig.diaInicio || 'Lunes'}
-                    onChange={(e) => setCierreConfig({ ...cierreConfig, diaInicio: e.target.value })}
-                  >
-                    <option value="Lunes">Lunes</option>
-                    <option value="Martes">Martes</option>
-                    <option value="Miércoles">Miércoles</option>
-                    <option value="Jueves">Jueves</option>
-                    <option value="Viernes">Viernes</option>
-                    <option value="Sábado">Sábado</option>
-                    <option value="Domingo">Domingo</option>
-                  </select>
-                </div>
+              <div className="filter-group">
+                <select 
+                  className="select-filter"
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                >
+                  <option value="">Todas las Categorías ({products.length})</option>
+                  {dynamicCategories.map(cat => {
+                    const count = products.filter(p => p.Categoria && p.Categoria.toLowerCase() === cat.toLowerCase()).length;
+                    return (
+                      <option key={cat} value={cat}>
+                        {cat} {count > 0 ? `(${count})` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
 
-                {/* Hora de Inicio */}
+            {/* Products Data Table Section with Independent Container Scroll */}
+            <div className="table-card">
+              {loading ? (
+                <div style={{ padding: '40px', textTransform: 'uppercase', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <i className="fa-solid fa-spinner fa-spin fa-2x"></i>
+                  <p style={{ marginTop: '12px' }}>Cargando catálogo...</p>
+                </div>
+              ) : error ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: 'var(--accent-red)' }}>
+                  <i className="fa-solid fa-triangle-exclamation fa-2x"></i>
+                  <p style={{ marginTop: '12px' }}>{error}</p>
+                  <button type="button" className="btn-secondary" onClick={() => fetchProducts(true)} style={{ marginTop: '16px' }}>
+                    Reintentar
+                  </button>
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="custom-table">
+                    <thead>
+                      <tr>
+                        <th>N° Orden</th>
+                        <th>Imagen</th>
+                        <th>Nombre</th>
+                        <th>Categoría</th>
+                        <th>Color</th>
+                        <th>Precio</th>
+                        <th>Nuevo</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredProducts.length === 0 ? (
+                        <tr>
+                          <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-dim)' }}>
+                            No se encontraron prendas registradas.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredProducts.map((p, index) => {
+                          const isNew = p.Nuevo === true || p.Nuevo === 'Si' || p.Nuevo === 'true';
+                          const orderDisplay = (p.numorden !== undefined && p.numorden !== null && p.numorden !== '')
+                            ? p.numorden
+                            : (p.numOrden !== undefined && p.numOrden !== null && p.numOrden !== '' ? p.numOrden : (index + 1));
+                          return (
+                            <tr key={p.id || index}>
+                              <td>
+                                <span className="numorden-badge">#{orderDisplay}</span>
+                              </td>
+                              <td>
+                                <div className="product-thumb-container">
+                                  <img 
+                                    src={p.imgReel0 || 'https://via.placeholder.com/80'} 
+                                    alt={p.Nombre} 
+                                    className="table-thumb"
+                                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=100'; }}
+                                  />
+                                </div>
+                              </td>
+                              <td>
+                                <strong>{p.Nombre}</strong>
+                              </td>
+                              <td>{p.Categoria || 'Casual'}</td>
+                              <td>{p.Color || '-'}</td>
+                              <td>
+                                <span style={{ color: 'var(--accent-gold)', fontWeight: '600' }}>
+                                  S/. {p.Precio}
+                                </span>
+                              </td>
+                              <td>
+                                <span className={`badge-status ${isNew ? 'yes' : 'no'}`}>
+                                  {isNew ? 'Sí' : 'No'}
+                                </span>
+                              </td>
+                              <td>
+                                <div className="actions-cell">
+                                  <button 
+                                    type="button" 
+                                    className="btn-icon edit" 
+                                    title="Editar Producto"
+                                    onClick={() => handleOpenEditModal(p, index)}
+                                  >
+                                    <i className="fa-solid fa-pen-to-square"></i>
+                                  </button>
+                                  <button 
+                                    type="button" 
+                                    className="btn-icon delete" 
+                                    title="Eliminar Producto"
+                                    onClick={() => setDeletingProduct(p)}
+                                  >
+                                    <i className="fa-solid fa-trash-can"></i>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* VIEW 2: ORDER CLOSING COUNTDOWN CONFIGURATION (2 CYCLES PER WEEK) */}
+        {activeTab === 'cierre' && (
+          <div className="table-card" style={{ padding: '28px', overflowY: 'auto' }}>
+            <div className="cierre-config-container">
+              <form onSubmit={handleSaveCierreConfig} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div className="form-group">
-                  <label>Hora de Inicio (24h)</label>
+                  <label style={{ fontSize: '0.9rem', color: 'var(--accent-gold)' }}>Título del Cronómetro en la Web</label>
                   <input 
-                    type="time" 
-                    value={cierreConfig.horaInicio || '08:00'}
-                    onChange={(e) => setCierreConfig({ ...cierreConfig, horaInicio: e.target.value })}
+                    type="text" 
+                    value={cierreConfig.titulo || ''}
+                    onChange={(e) => setCierreConfig({ ...cierreConfig, titulo: e.target.value })}
+                    placeholder="Ej: Cierre de Pedidos Semanal"
                   />
                 </div>
 
-                {/* Dia de Cierre/Entrega */}
-                <div className="form-group">
-                  <label>Día de Cierre de Pedidos / Entrega</label>
-                  <select
-                    value={cierreConfig.diaFin || 'Viernes'}
-                    onChange={(e) => setCierreConfig({ ...cierreConfig, diaFin: e.target.value })}
-                  >
-                    <option value="Lunes">Lunes</option>
-                    <option value="Martes">Martes</option>
-                    <option value="Miércoles">Miércoles</option>
-                    <option value="Jueves">Jueves</option>
-                    <option value="Viernes">Viernes</option>
-                    <option value="Sábado">Sábado</option>
-                    <option value="Domingo">Domingo</option>
-                  </select>
+                {/* CICLO 1: PRIMERA ENTREGA */}
+                <div className="cycle-card">
+                  <h3 className="cycle-card-title">
+                    <i className="fa-solid fa-calendar-check"></i> Ciclo 1: Primera Entrega Semanal
+                  </h3>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Día de Inicio 1</label>
+                      <select
+                        value={cierreConfig.diaInicio1 || 'Lunes'}
+                        onChange={(e) => setCierreConfig({ ...cierreConfig, diaInicio1: e.target.value })}
+                      >
+                        <option value="Lunes">Lunes</option>
+                        <option value="Martes">Martes</option>
+                        <option value="Miércoles">Miércoles</option>
+                        <option value="Jueves">Jueves</option>
+                        <option value="Viernes">Viernes</option>
+                        <option value="Sábado">Sábado</option>
+                        <option value="Domingo">Domingo</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Hora de Inicio 1 (24h)</label>
+                      <input 
+                        type="time" 
+                        value={cierreConfig.horaInicio1 || '08:00'}
+                        onChange={(e) => setCierreConfig({ ...cierreConfig, horaInicio1: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Día de Cierre / Entrega 1</label>
+                      <select
+                        value={cierreConfig.diaFin1 || 'Miércoles'}
+                        onChange={(e) => setCierreConfig({ ...cierreConfig, diaFin1: e.target.value })}
+                      >
+                        <option value="Lunes">Lunes</option>
+                        <option value="Martes">Martes</option>
+                        <option value="Miércoles">Miércoles</option>
+                        <option value="Jueves">Jueves</option>
+                        <option value="Viernes">Viernes</option>
+                        <option value="Sábado">Sábado</option>
+                        <option value="Domingo">Domingo</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Hora de Cierre 1 (24h)</label>
+                      <input 
+                        type="time" 
+                        value={cierreConfig.horaFin1 || '23:59'}
+                        onChange={(e) => setCierreConfig({ ...cierreConfig, horaFin1: e.target.value })}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                {/* Hora de Cierre */}
-                <div className="form-group">
-                  <label>Hora de Cierre (24h)</label>
+                {/* CICLO 2: SEGUNDA ENTREGA */}
+                <div className="cycle-card">
+                  <h3 className="cycle-card-title" style={{ color: 'var(--accent-pink)' }}>
+                    <i className="fa-solid fa-calendar-star"></i> Ciclo 2: Segunda Entrega Semanal
+                  </h3>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Día de Inicio 2</label>
+                      <select
+                        value={cierreConfig.diaInicio2 || 'Jueves'}
+                        onChange={(e) => setCierreConfig({ ...cierreConfig, diaInicio2: e.target.value })}
+                      >
+                        <option value="Lunes">Lunes</option>
+                        <option value="Martes">Martes</option>
+                        <option value="Miércoles">Miércoles</option>
+                        <option value="Jueves">Jueves</option>
+                        <option value="Viernes">Viernes</option>
+                        <option value="Sábado">Sábado</option>
+                        <option value="Domingo">Domingo</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Hora de Inicio 2 (24h)</label>
+                      <input 
+                        type="time" 
+                        value={cierreConfig.horaInicio2 || '08:00'}
+                        onChange={(e) => setCierreConfig({ ...cierreConfig, horaInicio2: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Día de Cierre / Entrega 2</label>
+                      <select
+                        value={cierreConfig.diaFin2 || 'Sábado'}
+                        onChange={(e) => setCierreConfig({ ...cierreConfig, diaFin2: e.target.value })}
+                      >
+                        <option value="Lunes">Lunes</option>
+                        <option value="Martes">Martes</option>
+                        <option value="Miércoles">Miércoles</option>
+                        <option value="Jueves">Jueves</option>
+                        <option value="Viernes">Viernes</option>
+                        <option value="Sábado">Sábado</option>
+                        <option value="Domingo">Domingo</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Hora de Cierre 2 (24h)</label>
+                      <input 
+                        type="time" 
+                        value={cierreConfig.horaFin2 || '23:59'}
+                        onChange={(e) => setCierreConfig({ ...cierreConfig, horaFin2: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <input 
-                    type="time" 
-                    value={cierreConfig.horaFin || '23:59'}
-                    onChange={(e) => setCierreConfig({ ...cierreConfig, horaFin: e.target.value })}
+                    type="checkbox" 
+                    id="cierre-activo-check"
+                    checked={cierreConfig.activo !== false}
+                    onChange={(e) => setCierreConfig({ ...cierreConfig, activo: e.target.checked })}
+                    style={{ width: '20px', height: '20px', cursor: 'pointer' }}
                   />
+                  <label htmlFor="cierre-activo-check" style={{ cursor: 'pointer', fontSize: '0.95rem', fontWeight: '500' }}>
+                    Mostrar cronómetro de cierre de pedidos en la tienda web
+                  </label>
                 </div>
-              </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-                <input 
-                  type="checkbox" 
-                  id="cierre-activo-check"
-                  checked={cierreConfig.activo !== false}
-                  onChange={(e) => setCierreConfig({ ...cierreConfig, activo: e.target.checked })}
-                  style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-                />
-                <label htmlFor="cierre-activo-check" style={{ cursor: 'pointer', fontSize: '0.95rem', fontWeight: '500' }}>
-                  Mostrar cronómetro de cierre de pedidos en la tienda web
-                </label>
-              </div>
-
-              <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
-                <button type="submit" className="btn-primary" disabled={cierreSaving}>
-                  {cierreSaving ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>}
-                  Guardar Configuración de Cierre
-                </button>
-              </div>
-            </form>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button type="submit" className="btn-primary" disabled={cierreSaving}>
+                    {cierreSaving ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-floppy-disk"></i>}
+                    Guardar Configuración de Cierres (2 Entregas)
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </main>
 
       {/* Modal Add / Edit Form */}
       {isModalOpen && (
