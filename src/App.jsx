@@ -1490,7 +1490,7 @@ function App() {
                           gap: '4px'
                         }}
                       >
-                        <i className="fa-solid fa-palette"></i> + Registrar Nuevo Color
+                        <i className="fa-solid fa-palette"></i> + Crear Color
                       </button>
                     </div>
 
@@ -1511,7 +1511,7 @@ function App() {
                         <option key={c} value={c}>{c}</option>
                       ))}
                       <option value="__CREATE_NEW__" style={{ fontWeight: 'bold', color: 'var(--accent-gold)' }}>
-                        🎨 + Registrar Nuevo Color en un Modal...
+                        🎨 + Crear Color...
                       </option>
                     </select>
                   </div>
@@ -1615,7 +1615,7 @@ function App() {
           <div className="modal-card" style={{ maxWidth: '420px', animation: 'fadeIn 0.25s ease' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                🎨 Registrar Nuevo Color
+                🎨 Crear Color
               </h2>
               <button type="button" className="btn-close-modal" onClick={() => setIsColorModalOpen(false)}>
                 ✕
