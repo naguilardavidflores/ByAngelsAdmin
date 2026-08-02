@@ -1218,3 +1218,108 @@ body {
     bottom: 16px;
   }
 }
+
+/* Mobile Collapsible Stats Toggle Bar */
+.mobile-stats-toggle-bar {
+  display: none;
+}
+
+@media (max-width: 991px) {
+  /* Hide page title description on mobile so table moves to top */
+  .page-title-group p {
+    display: none;
+  }
+  
+  .page-title-group h2 {
+    font-size: 1.25rem;
+  }
+
+  /* Show stats toggle bar on mobile */
+  .mobile-stats-toggle-bar {
+    display: block;
+    margin-bottom: 14px;
+  }
+
+  .btn-toggle-stats-mobile {
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(22, 22, 35, 0.9);
+    border: 1px solid var(--border-highlight);
+    border-radius: var(--radius-md);
+    color: var(--accent-gold);
+    font-weight: 700;
+    font-size: 0.92rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    transition: var(--transition);
+  }
+
+  .btn-toggle-stats-mobile:active {
+    transform: scale(0.98);
+  }
+
+  /* Hide metrics-grid by default on mobile unless .show-mobile is active */
+  .metrics-grid {
+    display: none;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .metrics-grid.show-mobile {
+    display: grid !important;
+  }
+
+  /* Table Card Maximization on Mobile */
+  .table-card {
+    padding: 12px !important;
+    border-radius: var(--radius-md) !important;
+    background: rgba(18, 18, 28, 0.95) !important;
+    box-shadow: var(--shadow-lg) !important;
+    margin-top: 10px;
+  }
+
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+
+  .custom-table {
+    min-width: 680px; /* Allows full legible display of row columns without squishing */
+  }
+
+  .custom-table th,
+  .custom-table td {
+    padding: 14px 10px !important;
+    font-size: 0.92rem !important;
+  }
+
+  .custom-table td img {
+    width: 52px !important;
+    height: 68px !important;
+    object-fit: cover !important;
+    border-radius: 8px !important;
+  }
+
+  .badge-numorden {
+    font-size: 0.92rem !important;
+    padding: 5px 10px !important;
+    border-radius: 8px !important;
+  }
+
+  .action-buttons-group {
+    display: flex;
+    gap: 8px;
+  }
+
+  .action-buttons-group button {
+    padding: 8px 12px !important;
+    font-size: 0.88rem !important;
+    border-radius: 8px !important;
+  }
+}

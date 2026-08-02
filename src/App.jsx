@@ -12,6 +12,9 @@ function App() {
   // Mobile Sidebar Navigation State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Mobile Collapsible Stats State (starts FALSE = hidden by default on mobile)
+  const [showStatsMobile, setShowStatsMobile] = useState(false);
+
   // Search and Filter controls
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -747,8 +750,20 @@ function App() {
         {/* VIEW 1: CATALOGUE MANAGEMENT */}
         {activeTab === 'catalog' && (
           <>
-            {/* Dashboard Metrics Grid */}
-            <div className="metrics-grid">
+            {/* Mobile Collapsible Stats Toggle Button (Hidden on Desktop) */}
+            <div className="mobile-stats-toggle-bar">
+              <button 
+                type="button" 
+                className="btn-toggle-stats-mobile"
+                onClick={() => setShowStatsMobile(!showStatsMobile)}
+              >
+                <span>📊 {showStatsMobile ? 'Ocultar Resumen y Totales' : `Ver Resumen y Totales (${products.length} prendas)`}</span>
+                <i className={`fa-solid ${showStatsMobile ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+              </button>
+            </div>
+
+            {/* Dashboard Metrics Grid (Collapsible on Mobile, always open on Desktop) */}
+            <div className={`metrics-grid ${showStatsMobile ? 'show-mobile' : ''}`}>
               <div className="metric-card">
                 <div className="metric-icon-box gold">
                   <i className="fa-solid fa-shirt"></i>
