@@ -160,14 +160,21 @@ function App() {
     fetchCierreConfig();
   }, []);
 
-  // Compute dynamic list of categories from existing products + defaults
-  const dynamicCategories = Array.from(new Set([
-    'Athleisure',
-    'Casual',
-    'Streetwear',
-    'Urbano',
-    ...products.map(p => p.Categoria).filter(Boolean)
-  ]));
+  // Helper to normalize category names cleanly (e.g. "streetwear" -> "Streetwear")
+  const formatCategoryName = (cat) => {
+    if (!cat || typeof cat !== 'string') return '';
+    const trimmed = cat.trim();
+    if (!trimmed) return '';
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+  };
+
+  // Compute unique normalized categories (case-insensitive deduplication)
+  const dynamicCategories = Array.from(
+    new Set(
+      ['Athleisure', 'Casual', 'Streetwear', 'Urbano', ...products.map(p => formatCategoryName(p.Categoria))]
+        .filter(Boolean)
+    )
+  );
 
   // Compute next auto-increment numorden value for new products
   const calculateNextNumOrden = () => {
@@ -182,25 +189,25 @@ function App() {
     return max + 1;
   };
 
-  // Open modal to create a new product
+  // Open modal to create a new product (starts with EMPTY image fields)
   const handleOpenAddModal = () => {
     const nextOrder = calculateNextNumOrden();
     setEditingProduct(null);
     setFormData({
       Nombre: '',
       Categoria: dynamicCategories[0] || 'Athleisure',
-      Color: 'Negro',
-      Precio: '40.00',
+      Color: '',
+      Precio: '',
       Nuevo: 'Si',
       Tendencia: 'Si',
       numorden: String(nextOrder),
-      imgReel0: 'https://i.pinimg.com/736x/c7/6f/45/c76f457d508db1209af9b3acd94ec4cf.jpg',
-      imgReel1: 'https://i.pinimg.com/736x/06/7e/22/067e22fe3a6f98d10fcd00ec1bbf781a.jpg',
-      imgReel2: 'https://i.pinimg.com/736x/5b/97/97/5b97970d05090ee0ac89fbb558cd95b3.jpg',
-      imgReel3: 'https://i.pinimg.com/736x/d8/cb/99/d8cb9960ae0a3243ba1e4a5f3b73fc54.jpg',
-      imgReel4: 'https://i.pinimg.com/736x/2e/53/72/2e5372c2f4e0a7900e7a7529644cf407.jpg',
-      imgReel5: 'https://i.pinimg.com/736x/5b/97/97/5b97970d05090ee0ac89fbb558cd95b3.jpg',
-      imgReel6: 'https://i.pinimg.com/736x/a4/f8/27/a4f8273affdf1638ad583e0b340764cf.jpg'
+      imgReel0: '',
+      imgReel1: '',
+      imgReel2: '',
+      imgReel3: '',
+      imgReel4: '',
+      imgReel5: '',
+      imgReel6: ''
     });
     setIsModalOpen(true);
   };
