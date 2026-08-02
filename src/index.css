@@ -955,3 +955,266 @@ body {
   color: #fff;
   margin-bottom: 6px;
 }
+
+/* ==========================================================================
+   MOBILE & TABLET RESPONSIVE SYSTEM FOR BYANGELS ADMIN PANEL
+   ========================================================================== */
+
+/* Mobile Top Navigation Header (hidden on desktop) */
+.admin-mobile-top-bar {
+  display: none;
+}
+
+.sidebar-close-btn-mobile {
+  display: none;
+}
+
+.sidebar-mobile-overlay {
+  display: none;
+}
+
+@media (max-width: 991px) {
+  /* Layout changes from horizontal flex to vertical column */
+  .admin-layout {
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* Mobile Header Bar */
+  .admin-mobile-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border-glass);
+    height: 60px;
+    flex-shrink: 0;
+    z-index: 900;
+  }
+
+  .mobile-hamburger-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-glass);
+    color: var(--text-main);
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+
+  .mobile-hamburger-btn:active {
+    transform: scale(0.92);
+  }
+
+  .mobile-brand-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-main);
+  }
+
+  .mobile-brand-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--accent-gold);
+    object-fit: cover;
+  }
+
+  .mobile-action-add-btn {
+    background: var(--gradient-gold);
+    color: #000;
+    border: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(212, 175, 55, 0.4);
+    cursor: pointer;
+  }
+
+  /* Drawer Sidebar Navigation Menu */
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    max-width: 82vw;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 10px 0 40px rgba(0, 0, 0, 0.8);
+    border-right: 1px solid var(--border-glass);
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-close-btn-mobile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-glass);
+    color: var(--text-muted);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    cursor: pointer;
+    margin-left: auto;
+  }
+
+  .sidebar-mobile-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 999;
+    animation: fadeIn 0.25s ease;
+  }
+
+  /* Main Workspace Area */
+  .admin-main-content {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    height: calc(100vh - 60px);
+    height: calc(100dvh - 60px);
+  }
+
+  /* Top Main Header Bar inside Workspace */
+  .main-header-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .admin-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .search-box-input,
+  .filter-select,
+  .btn-primary {
+    width: 100% !important;
+  }
+
+  .btn-primary {
+    justify-content: center;
+  }
+
+  /* Metrics & Stats Grid */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  /* Products Grid */
+  .products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  /* Modal Form Responsiveness */
+  .modal-card {
+    width: 94vw !important;
+    max-width: 600px !important;
+    max-height: 90vh !important;
+    max-height: 90dvh !important;
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+  }
+
+  .modal-body {
+    padding: 16px 20px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .image-inputs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .image-input-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .news-input-card {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .news-thumb-preview {
+    margin: 0 auto 10px;
+  }
+
+  .tier-row {
+    flex-wrap: wrap;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+
+  .modal-footer button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 575px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .products-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .confirm-box {
+    width: 90vw;
+    padding: 20px;
+  }
+
+  .toast-notification {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+  }
+}

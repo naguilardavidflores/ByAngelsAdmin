@@ -9,6 +9,9 @@ function App() {
   // Navigation Menu Tabs: 'catalog' | 'cierre' | 'descuentos'
   const [activeTab, setActiveTab] = useState('catalog');
 
+  // Mobile Sidebar Navigation State
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   // Search and Filter controls
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -578,8 +581,48 @@ function App() {
 
   return (
     <div className="admin-layout">
+      {/* Mobile Top Navigation Header (Visible on Mobile/Tablet screens < 992px) */}
+      <header className="admin-mobile-top-bar">
+        <button 
+          type="button" 
+          className="mobile-hamburger-btn" 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars'}`}></i>
+        </button>
+        <div className="mobile-brand-title">
+          <img 
+            src="https://i.pinimg.com/736x/89/3e/a5/893ea5e4b77f98d75225c5d012431718.jpg" 
+            alt="ByAngels Logo" 
+            className="mobile-brand-logo"
+          />
+          <span>ByAngels Admin</span>
+        </div>
+        {activeTab === 'catalog' ? (
+          <button 
+            type="button" 
+            className="mobile-action-add-btn" 
+            onClick={handleOpenAddModal}
+            title="Agregar Producto"
+          >
+            <i className="fa-solid fa-plus"></i>
+          </button>
+        ) : (
+          <div style={{ width: '38px' }} />
+        )}
+      </header>
+
+      {/* Backdrop overlay for mobile menu drawer */}
+      {isMobileMenuOpen && (
+        <div 
+          className="sidebar-mobile-overlay active"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Left Sidebar Navigation Menu */}
-      <aside className="admin-sidebar">
+      <aside className={`admin-sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div>
           <div className="sidebar-brand">
             <img 
@@ -591,6 +634,14 @@ function App() {
               <h1>ByAngels</h1>
               <p>Panel Administrativo</p>
             </div>
+            <button 
+              type="button"
+              className="sidebar-close-btn-mobile"
+              onClick={() => setIsMobileMenuOpen(false)}
+              aria-label="Cerrar menú"
+            >
+              ✕
+            </button>
           </div>
 
           <nav className="sidebar-menu">
@@ -599,7 +650,7 @@ function App() {
             <button 
               type="button" 
               className={`sidebar-link ${activeTab === 'catalog' ? 'active' : ''}`}
-              onClick={() => setActiveTab('catalog')}
+              onClick={() => { setActiveTab('catalog'); setIsMobileMenuOpen(false); }}
             >
               <i className="fa-solid fa-shirt"></i>
               <span>Catálogo de Productos</span>
@@ -608,7 +659,7 @@ function App() {
             <button 
               type="button" 
               className={`sidebar-link ${activeTab === 'cierre' ? 'active' : ''}`}
-              onClick={() => setActiveTab('cierre')}
+              onClick={() => { setActiveTab('cierre'); setIsMobileMenuOpen(false); }}
             >
               <i className="fa-solid fa-stopwatch"></i>
               <span>Cierre de Pedidos</span>
@@ -617,7 +668,7 @@ function App() {
             <button 
               type="button" 
               className={`sidebar-link ${activeTab === 'descuentos' ? 'active' : ''}`}
-              onClick={() => setActiveTab('descuentos')}
+              onClick={() => { setActiveTab('descuentos'); setIsMobileMenuOpen(false); }}
             >
               <i className="fa-solid fa-tags"></i>
               <span>Reglas de Descuentos</span>
@@ -626,7 +677,7 @@ function App() {
             <button 
               type="button" 
               className={`sidebar-link ${activeTab === 'noticias' ? 'active' : ''}`}
-              onClick={() => setActiveTab('noticias')}
+              onClick={() => { setActiveTab('noticias'); setIsMobileMenuOpen(false); }}
             >
               <i className="fa-solid fa-newspaper"></i>
               <span>Gestor de Noticias</span>
