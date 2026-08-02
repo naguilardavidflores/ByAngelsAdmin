@@ -279,6 +279,11 @@ function App() {
       if (!res.ok) throw new Error('Error al guardar horario');
       const updated = await res.json();
       setCierreConfig(prev => ({ ...prev, ...updated }));
+      
+      try {
+        localStorage.setItem('byangels_cierre_config', JSON.stringify(updated));
+      } catch (saveErr) {}
+
       showToast('¡Horario de las 2 entregas de pedidos actualizado!');
     } catch (err) {
       console.error('Cierre save error:', err);
