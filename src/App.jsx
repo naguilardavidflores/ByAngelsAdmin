@@ -22,7 +22,8 @@ function App() {
     Nombre: '',
     Categoria: 'Athleisure',
     Color: '',
-    Precio: '40.00',
+    Precio: '',
+    precioDolares: '',
     Nuevo: 'Si',
     Tendencia: 'Si',
     numorden: '',
@@ -32,7 +33,8 @@ function App() {
     imgReel3: '',
     imgReel4: '',
     imgReel5: '',
-    imgReel6: ''
+    imgReel6: '',
+    imgReel7: ''
   });
 
   // Delete Confirmation Modal State
@@ -235,6 +237,7 @@ function App() {
       Categoria: dynamicCategories[0] || 'Athleisure',
       Color: '',
       Precio: '',
+      precioDolares: '',
       Nuevo: 'Si',
       Tendencia: 'Si',
       numorden: String(nextOrder),
@@ -244,7 +247,8 @@ function App() {
       imgReel3: '',
       imgReel4: '',
       imgReel5: '',
-      imgReel6: ''
+      imgReel6: '',
+      imgReel7: ''
     });
     setIsModalOpen(true);
   };
@@ -261,6 +265,7 @@ function App() {
       Categoria: product.Categoria || 'Casual',
       Color: product.Color || '',
       Precio: String(product.Precio || '0.00'),
+      precioDolares: String(product.precioDolares || product.PrecioDolares || ''),
       Nuevo: product.Nuevo === true || product.Nuevo === 'Si' || product.Nuevo === 'true' ? 'Si' : 'No',
       Tendencia: product.Tendencia === true || product.Tendencia === 'Si' || product.Tendencia === 'true' ? 'Si' : 'No',
       numorden: String(orderValue),
@@ -270,7 +275,8 @@ function App() {
       imgReel3: product.imgReel3 || '',
       imgReel4: product.imgReel4 || '',
       imgReel5: product.imgReel5 || '',
-      imgReel6: product.imgReel6 || ''
+      imgReel6: product.imgReel6 || '',
+      imgReel7: product.imgReel7 || ''
     });
     setIsModalOpen(true);
   };
@@ -692,9 +698,20 @@ function App() {
                               <td>{p.Categoria || 'Casual'}</td>
                               <td>{p.Color || '-'}</td>
                               <td>
-                                <span style={{ color: 'var(--accent-gold)', fontWeight: '600' }}>
-                                  S/. {p.Precio}
-                                </span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <span style={{ color: 'var(--accent-gold)', fontWeight: '600' }}>
+                                    S/. {p.Precio}
+                                  </span>
+                                  {p.precioDolares ? (
+                                    <span style={{ color: '#00e676', fontSize: '0.8rem', fontWeight: '500' }}>
+                                      $ {p.precioDolares} USD
+                                    </span>
+                                  ) : (
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                                      $ {(Number(p.Precio) / 3.7).toFixed(2)} USD
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td>
                                 <span className={`badge-status ${isNew ? 'yes' : 'no'}`}>
@@ -1101,7 +1118,7 @@ function App() {
                     />
                   </div>
 
-                  {/* Precio */}
+                  {/* Precio Soles */}
                   <div className="form-group">
                     <label>Precio (S/.) <span className="required">*</span></label>
                     <input 
@@ -1110,6 +1127,17 @@ function App() {
                       placeholder="40.00"
                       value={formData.Precio}
                       onChange={(e) => setFormData({ ...formData, Precio: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Precio USD Dolares */}
+                  <div className="form-group">
+                    <label>Precio ($ USD)</label>
+                    <input 
+                      type="text" 
+                      placeholder="11.00"
+                      value={formData.precioDolares}
+                      onChange={(e) => setFormData({ ...formData, precioDolares: e.target.value })}
                     />
                   </div>
 
@@ -1126,10 +1154,10 @@ function App() {
                   </div>
                 </div>
 
-                {/* Images Reel URLs 0 to 6 with Real-Time Preview */}
-                <h3 className="images-section-title">🖼️ Imágenes del Reel (imgReel0 a imgReel6)</h3>
+                {/* Images Reel URLs 0 to 7 with Real-Time Preview */}
+                <h3 className="images-section-title">🖼️ Imágenes del Reel (imgReel0 a imgReel7)</h3>
                 <div className="image-inputs-grid">
-                  {[0, 1, 2, 3, 4, 5, 6].map((idx) => {
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map((idx) => {
                     const keyName = `imgReel${idx}`;
                     const imgUrl = formData[keyName];
                     return (
