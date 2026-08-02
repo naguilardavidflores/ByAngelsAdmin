@@ -264,6 +264,53 @@ function App() {
     )
   );
 
+  // Custom Created Colors State (Persisted in localStorage)
+  const [customColors, setCustomColors] = useState(() => {
+    try {
+      const saved = localStorage.getItem('byangels_custom_colors');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [isAddingNewColor, setIsAddingNewColor] = useState(false);
+  const [newColorInput, setNewColorInput] = useState('');
+
+  // Compute dynamic list of colors deduplicated from existing products + customColors + default popular colors
+  const defaultColorsList = ['Negro', 'Blanco', 'Beige', 'Rosado', 'Rojo', 'Azul', 'Verde', 'Gris', 'Marfil', 'Lila', 'Marrón', 'Amarillo', 'Nude'];
+  const dynamicColors = Array.from(
+    new Set(
+      [
+        ...defaultColorsList,
+        ...customColors,
+        ...products.map(p => p.Color ? p.Color.trim() : '')
+      ].filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+
+  // Helper to save a newly created color
+  const handleSaveNewColor = (colorName) => {
+    if (!colorName || typeof colorName !== 'string') return;
+    const trimmed = colorName.trim();
+    if (!trimmed) return;
+
+    // Capitalize first letter cleanly
+    const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    
+    if (!customColors.includes(formatted)) {
+      const updated = [...customColors, formatted];
+      setCustomColors(updated);
+      try {
+        localStorage.setItem('byangels_custom_colors', JSON.stringify(updated));
+      } catch (e) {}
+    }
+
+    setFormData(prev => ({ ...prev, Color: formatted }));
+    setIsAddingNewColor(false);
+    setNewColorInput('');
+    showToast(`Color "${formatted}" registrado y seleccionado.`);
+  };
+
   // Compute next auto-increment numorden value for new products
   const calculateNextNumOrden = () => {
     if (!products || products.length === 0) return 1;
@@ -281,10 +328,12 @@ function App() {
   const handleOpenAddModal = () => {
     const nextOrder = calculateNextNumOrden();
     setEditingProduct(null);
+    setIsAddingNewColor(false);
+    setNewColorInput('');
     setFormData({
       Nombre: '',
       Categoria: dynamicCategories[0] || 'Athleisure',
-      Color: '',
+      Color: dynamicColors[0] || 'Negro',
       Precio: '',
       precioDolares: '',
       Nuevo: 'Si',
@@ -306,6 +355,8 @@ function App() {
   // Open modal to edit an existing product
   const handleOpenEditModal = (product, index) => {
     setEditingProduct(product);
+    setIsAddingNewColor(false);
+    setNewColorInput('');
     const orderValue = product.numorden !== undefined && product.numorden !== null && product.numorden !== '' 
       ? product.numorden 
       : (product.numOrden !== undefined ? product.numOrden : (index + 1));
@@ -1419,15 +1470,88 @@ function App() {
                     </select>
                   </div>
 
-                  {/* Color */}
+                  {/* Color Selector with Dynamic List & Quick Color Creator */}
                   <div className="form-group">
-                    <label>Color</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ej: Negro, Crema, Plomo"
-                      value={formData.Color}
-                      onChange={(e) => setFormData({ ...formData, Color: e.target.value })}
-                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ margin: 0 }}>Color de Prenda <span className="required">*</span></label>
+                      {!isAddingNewColor && (
+                        <button 
+                          type="button"
+                          onClick={() => { setIsAddingNewColor(true); setNewColorInput(''); }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--accent-gold)',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <i className="fa-solid fa-plus-circle"></i> + Crear Color
+                        </button>
+                      )}
+                    </div>
+
+                    {!isAddingNewColor ? (
+                      <select
+                        value={formData.Color}
+                        onChange={(e) => {
+                          if (e.target.value === '__CREATE_NEW__') {
+                            setIsAddingNewColor(true);
+                            setNewColorInput('');
+                          } else {
+                            setFormData({ ...formData, Color: e.target.value });
+                          }
+                        }}
+                        required
+                      >
+                        <option value="">-- Selecciona un Color --</option>
+                        {dynamicColors.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                        <option value="__CREATE_NEW__" style={{ fontWeight: 'bold', color: 'var(--accent-gold)' }}>
+                          ➕ + Crear Nuevo Color...
+                        </option>
+                      </select>
+                    ) : (
+                      /* Inline Quick Color Creator */
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input 
+                          type="text" 
+                          placeholder="Nuevo color (ej: Verde Esmeralda)"
+                          value={newColorInput}
+                          onChange={(e) => setNewColorInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleSaveNewColor(newColorInput);
+                            }
+                          }}
+                          autoFocus
+                          style={{ flex: 1 }}
+                        />
+                        <button 
+                          type="button" 
+                          className="btn-primary" 
+                          onClick={() => handleSaveNewColor(newColorInput)}
+                          style={{ padding: '0 14px', height: '42px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+                        >
+                          <i className="fa-solid fa-check"></i> Guardar
+                        </button>
+                        <button 
+                          type="button" 
+                          className="btn-secondary" 
+                          onClick={() => setIsAddingNewColor(false)}
+                          style={{ padding: '0 12px', height: '42px' }}
+                          title="Cancelar"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Precio Soles */}
