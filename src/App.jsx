@@ -55,19 +55,15 @@ function App() {
   });
   const [cierreSaving, setCierreSaving] = useState(false);
 
-  // Price-Range Volume Discount Rules State
+  // Price-Range Volume Discount Rules State (starts with 1 empty range)
   const [descuentosRules, setDescuentosRules] = useState([
     {
       id: 'rango_1',
-      nombre: 'Rango 37 - 40 S/.',
-      rangoInicio: 37.00,
-      rangoFin: 40.00,
+      nombre: '',
+      rangoInicio: '',
+      rangoFin: '',
       activo: true,
-      escalones: [
-        { cantidadMinima: 3, precioOferta: 33.30 },
-        { cantidadMinima: 6, precioOferta: 30.00 },
-        { cantidadMinima: 12, precioOferta: 28.00 }
-      ]
+      escalones: []
     }
   ]);
   const [descuentosSaving, setDescuentosSaving] = useState(false);
@@ -341,18 +337,16 @@ function App() {
     }
   };
 
-  // DISCOUNT RULES MANAGEMENT HANDLERS
+  // DISCOUNT RULES MANAGEMENT HANDLERS (Empty by default for user customization)
   const handleAddRange = () => {
     const newId = `rango_${Date.now()}`;
     const newRange = {
       id: newId,
-      nombre: 'Nuevo Rango de Precios',
-      rangoInicio: 41.00,
-      rangoFin: 50.00,
+      nombre: '',
+      rangoInicio: '',
+      rangoFin: '',
       activo: true,
-      escalones: [
-        { cantidadMinima: 3, precioOferta: 37.00 }
-      ]
+      escalones: []
     };
     setDescuentosRules([...descuentosRules, newRange]);
   };
@@ -373,12 +367,9 @@ function App() {
   const handleAddTier = (rangeId) => {
     setDescuentosRules(descuentosRules.map(r => {
       if (r.id === rangeId) {
-        const lastTier = r.escalones[r.escalones.length - 1];
-        const nextQty = lastTier ? lastTier.cantidadMinima + 3 : 3;
-        const nextPrice = lastTier ? Math.max(1, lastTier.precioOferta - 3) : 30;
         return {
           ...r,
-          escalones: [...r.escalones, { cantidadMinima: nextQty, precioOferta: nextPrice }]
+          escalones: [...r.escalones, { cantidadMinima: '', precioOferta: '' }]
         };
       }
       return r;
@@ -389,7 +380,7 @@ function App() {
     setDescuentosRules(descuentosRules.map(r => {
       if (r.id === rangeId) {
         const newTiers = [...r.escalones];
-        newTiers[tierIndex] = { ...newTiers[tierIndex], [field]: Number(value) || 0 };
+        newTiers[tierIndex] = { ...newTiers[tierIndex], [field]: value };
         return { ...r, escalones: newTiers };
       }
       return r;
@@ -935,9 +926,9 @@ function App() {
                         <input 
                           type="number" 
                           step="0.01"
-                          value={rango.rangoInicio}
-                          onChange={(e) => handleUpdateRangeField(rango.id, 'rangoInicio', Number(e.target.value))}
-                          placeholder="37.00"
+                          value={rango.rangoInicio ?? ''}
+                          onChange={(e) => handleUpdateRangeField(rango.id, 'rangoInicio', e.target.value)}
+                          placeholder="Ej: 37.00"
                         />
                       </div>
 
@@ -946,9 +937,9 @@ function App() {
                         <input 
                           type="number" 
                           step="0.01"
-                          value={rango.rangoFin}
-                          onChange={(e) => handleUpdateRangeField(rango.id, 'rangoFin', Number(e.target.value))}
-                          placeholder="40.00"
+                          value={rango.rangoFin ?? ''}
+                          onChange={(e) => handleUpdateRangeField(rango.id, 'rangoFin', e.target.value)}
+                          placeholder="Ej: 40.00"
                         />
                       </div>
                     </div>
@@ -959,53 +950,66 @@ function App() {
                         📊 Escalones de Descuento por Cantidad de Prendas en este Rango:
                       </label>
 
-                      {rango.escalones.map((tier, tIdx) => {
-                        const savingsPercent = rango.rangoFin > 0 
-                          ? Math.round(((rango.rangoFin - tier.precioOferta) / rango.rangoFin) * 100)
-                          : 0;
-                        return (
-                          <div className="tier-row" key={tIdx}>
-                            <div style={{ flex: 1 }}>
-                              <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>A partir de (Prendas):</label>
-                              <input 
-                                type="number" 
-                                min="1"
-                                value={tier.cantidadMinima}
-                                onChange={(e) => handleUpdateTierField(rango.id, tIdx, 'cantidadMinima', e.target.value)}
-                                style={{ width: '100%' }}
-                              />
-                            </div>
+                      {rango.escalones.length === 0 ? (
+                        <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', fontStyle: 'italic', margin: '8px 0' }}>
+                          No hay escalones agregados aún. Haz clic en "+ Agregar Escalón de Descuento" para definir ofertas por cantidad.
+                        </p>
+                      ) : (
+                        rango.escalones.map((tier, tIdx) => {
+                          const maxP = Number(rango.rangoFin) || 0;
+                          const offerP = Number(tier.precioOferta) || 0;
+                          const savingsPercent = (maxP > 0 && offerP > 0 && maxP > offerP) 
+                            ? Math.round(((maxP - offerP) / maxP) * 100)
+                            : 0;
 
-                            <div style={{ flex: 1 }}>
-                              <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Precio Oferta c/u (S/.):</label>
-                              <input 
-                                type="number" 
-                                step="0.10"
-                                value={tier.precioOferta}
-                                onChange={(e) => handleUpdateTierField(rango.id, tIdx, 'precioOferta', e.target.value)}
-                                style={{ width: '100%' }}
-                              />
-                            </div>
+                          return (
+                            <div className="tier-row" key={tIdx}>
+                              <div style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>A partir de (Prendas):</label>
+                                <input 
+                                  type="number" 
+                                  min="1"
+                                  placeholder="Ej: 3"
+                                  value={tier.cantidadMinima ?? ''}
+                                  onChange={(e) => handleUpdateTierField(rango.id, tIdx, 'cantidadMinima', e.target.value)}
+                                  style={{ width: '100%' }}
+                                />
+                              </div>
 
-                            <div style={{ minWidth: '100px', textAlign: 'center', paddingTop: '16px' }}>
-                              <span className="badge-status yes" style={{ background: 'rgba(212, 175, 55, 0.15)', color: 'var(--accent-gold)', border: '1px solid var(--accent-gold)' }}>
-                                -{savingsPercent}% Dcto
-                              </span>
-                            </div>
+                              <div style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Precio Oferta c/u (S/.):</label>
+                                <input 
+                                  type="number" 
+                                  step="0.10"
+                                  placeholder="Ej: 33.30"
+                                  value={tier.precioOferta ?? ''}
+                                  onChange={(e) => handleUpdateTierField(rango.id, tIdx, 'precioOferta', e.target.value)}
+                                  style={{ width: '100%' }}
+                                />
+                              </div>
 
-                            <div style={{ paddingTop: '16px' }}>
-                              <button 
-                                type="button" 
-                                className="btn-icon delete"
-                                onClick={() => handleDeleteTier(rango.id, tIdx)}
-                                title="Eliminar escalón"
-                              >
-                                <i className="fa-solid fa-minus"></i>
-                              </button>
+                              <div style={{ minWidth: '100px', textAlign: 'center', paddingTop: '16px' }}>
+                                {savingsPercent > 0 && (
+                                  <span className="badge-status yes" style={{ background: 'rgba(212, 175, 55, 0.15)', color: 'var(--accent-gold)', border: '1px solid var(--accent-gold)' }}>
+                                    -{savingsPercent}% Dcto
+                                  </span>
+                                )}
+                              </div>
+
+                              <div style={{ paddingTop: '16px' }}>
+                                <button 
+                                  type="button" 
+                                  className="btn-icon delete"
+                                  onClick={() => handleDeleteTier(rango.id, tIdx)}
+                                  title="Eliminar escalón"
+                                >
+                                  <i className="fa-solid fa-minus"></i>
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })
+                      )}
 
                       <button 
                         type="button" 
