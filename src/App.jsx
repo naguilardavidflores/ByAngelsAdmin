@@ -81,6 +81,11 @@ function App() {
   const [noticesList, setNoticesList] = useState([]);
   const [noticesSaving, setNoticesSaving] = useState(false);
 
+  // Welcome Screen Video/Image Config State
+  const [inicioUrl, setInicioUrl] = useState('');
+  const [inicioLoading, setInicioLoading] = useState(false);
+  const [inicioSaving, setInicioSaving] = useState(false);
+
   // Music Manager State (Background playlist tracks)
   const [musicsList, setMusicsList] = useState([]);
   const [musicsLoading, setMusicsLoading] = useState(false);
@@ -249,6 +254,51 @@ function App() {
     }
   };
 
+  // Fetch Welcome Screen Video URL configuration
+  const fetchInicioConfig = async () => {
+    setInicioLoading(true);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/inicio`, {
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const doc = data[0];
+          const url = doc.UrlInicio || doc.url || doc.imagen || doc.imageUrl || doc.img || doc.urlN0 || '';
+          setInicioUrl(url);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch inicio config:', err);
+    } finally {
+      setInicioLoading(false);
+    }
+  };
+
+  const handleSaveInicio = async (e) => {
+    if (e) e.preventDefault();
+    setInicioSaving(true);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/inicio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ UrlInicio: inicioUrl })
+      });
+      if (!res.ok) throw new Error('Error al guardar video de inicio');
+      showToast('¡Video/Imagen de pantalla de bienvenida guardado con éxito!');
+      fetchInicioConfig();
+    } catch (err) {
+      console.error('Inicio save error:', err);
+      showToast('Error al guardar URL del video de bienvenida', 'error');
+    } finally {
+      setInicioSaving(false);
+    }
+  };
+
   // Fetch Background Music playlist config
   const fetchMusicsConfig = async (forceRefresh = false) => {
     if (!forceRefresh) {
@@ -301,6 +351,7 @@ function App() {
     fetchDescuentosConfig();
     fetchNoticeConfig();
     fetchMusicsConfig();
+    fetchInicioConfig();
   }, []);
 
   // Helper to normalize category names cleanly (e.g. "streetwear" -> "Streetwear")
@@ -975,6 +1026,15 @@ function App() {
 
             <button 
               type="button" 
+              className={`sidebar-link ${activeTab === 'inicio' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('inicio'); setIsMobileMenuOpen(false); }}
+            >
+              <i className="fa-solid fa-circle-play"></i>
+              <span>Video de Bienvenida</span>
+            </button>
+
+            <button 
+              type="button" 
               className={`sidebar-link ${activeTab === 'musica' ? 'active' : ''}`}
               onClick={() => { setActiveTab('musica'); setIsMobileMenuOpen(false); }}
             >
@@ -1005,6 +1065,7 @@ function App() {
               {activeTab === 'cierre' && 'Cierre de Pedidos & Cronómetro'}
               {activeTab === 'descuentos' && 'Reglas de Descuentos por Rango de Precio'}
               {activeTab === 'noticias' && 'Gestor de Noticias y Anuncios (Pinterest & Google Drive)'}
+              {activeTab === 'inicio' && 'Video de Pantalla de Bienvenida (Inicio)'}
               {activeTab === 'musica' && 'Gestor de Música de Fondo'}
             </h2>
             <p>
@@ -1012,6 +1073,7 @@ function App() {
               {activeTab === 'cierre' && 'Configura las 2 fechas/entregas semanales de pedidos para la tienda web'}
               {activeTab === 'descuentos' && 'Configura rangos de precio base y descuentos por cantidad comprada'}
               {activeTab === 'noticias' && 'Agrega enlaces de imágenes desde Pinterest o Google Drive para los anuncios que se mostrarán en la web'}
+              {activeTab === 'inicio' && 'Configura la URL del video o imagen que aparece al abrir la tienda web en la pantalla de entrada'}
               {activeTab === 'musica' && 'Agrega, edita o elimina la lista de canciones de fondo que escuchan los clientes en la tienda web'}
             </p>
           </div>
@@ -1040,6 +1102,16 @@ function App() {
             {activeTab === 'noticias' && (
               <button type="button" className="btn-primary" onClick={handleAddNoticeUrl}>
                 <i className="fa-solid fa-plus"></i> Agregar Noticia
+              </button>
+            )}
+            {activeTab === 'inicio' && (
+              <button 
+                type="button" 
+                className="btn-secondary" 
+                onClick={() => fetchInicioConfig()}
+                title="Actualizar datos de inicio"
+              >
+                <i className="fa-solid fa-rotate"></i> Actualizar
               </button>
             )}
             {activeTab === 'musica' && (
@@ -1780,6 +1852,152 @@ function App() {
                   <i className="fa-solid fa-plus"></i> Agregar Nueva Canción
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Welcome Screen Video (Inicio) Manager View */}
+        {activeTab === 'inicio' && (
+          <div className="tab-content-container">
+            <div className="admin-card news-manager-container">
+              <div className="news-manager-header">
+                <div>
+                  <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                    <i className="fa-solid fa-circle-play" style={{ color: 'var(--accent-gold)' }}></i>
+                    Video de Bienvenida (Pantalla de Inicio Web)
+                  </h3>
+                  <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    Configura la URL del video o imagen de fondo que se reproduce al abrir la boutique web (Welcome Screen).
+                  </p>
+                </div>
+
+                <div className="news-info-pill">
+                  <i className="fa-solid fa-lightbulb" style={{ color: 'var(--accent-gold)' }}></i>
+                  <span>
+                    Admite enlaces directos a <strong>MP4</strong>, enlaces de <strong>Pinterest Video</strong>, <strong>Google Drive</strong>, transmisiones <strong>HLS (.m3u8)</strong> o imágenes de alta resolución.
+                  </span>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveInicio} style={{ marginTop: '20px' }}>
+                <div className="form-group" style={{ marginBottom: '20px' }}>
+                  <label style={{ fontSize: '0.95rem', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '8px', display: 'block' }}>
+                    URL del Video / Multimedia de Inicio <span className="required">*</span>
+                  </label>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <input 
+                      type="url" 
+                      required
+                      placeholder="Ej: https://v1.pinimg.com/videos/mc/720p/...mp4 o Google Drive link"
+                      value={inicioUrl}
+                      onChange={(e) => setInicioUrl(e.target.value)}
+                      style={{ flex: 1, padding: '12px 14px', fontSize: '0.92rem' }}
+                    />
+                    {inicioUrl && (
+                      <button 
+                        type="button" 
+                        className="btn-secondary" 
+                        onClick={() => setInicioUrl('')}
+                        title="Limpiar campo"
+                        style={{ padding: '0 16px' }}
+                      >
+                        <i className="fa-solid fa-xmark"></i>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* URL Type Badge */}
+                  {inicioUrl && (
+                    <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span className="url-type-badge" style={{ 
+                        background: getUrlTypeBadge(inicioUrl)?.color || 'var(--accent-gold)', 
+                        color: '#000', 
+                        fontWeight: 'bold',
+                        padding: '4px 10px',
+                        borderRadius: '12px',
+                        fontSize: '0.8rem'
+                      }}>
+                        {getUrlTypeBadge(inicioUrl)?.label || 'Multimedia URL'}
+                      </span>
+
+                      <small style={{ color: 'var(--text-muted)' }}>
+                        {/\.(mp4|webm|mov|m3u8)($|\?)/i.test(inicioUrl) || inicioUrl.includes('/video/') || inicioUrl.includes('v.pinimg.com')
+                          ? '🎬 Formato Video detectado'
+                          : '🖼️ Formato Imagen detectado'}
+                      </small>
+                    </div>
+                  )}
+                </div>
+
+                {/* Live Preview Box */}
+                <div style={{
+                  background: 'rgba(0,0,0,0.4)',
+                  border: '1px dashed var(--border-glass)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '20px',
+                  marginBottom: '24px',
+                  textAlign: 'center'
+                }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--accent-gold)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    <i className="fa-solid fa-eye" style={{ marginRight: '6px' }}></i> Vista Previa en Vivo
+                  </h4>
+
+                  {inicioLoading ? (
+                    <div style={{ padding: '40px', color: 'var(--accent-gold)' }}>
+                      <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2rem', marginBottom: '8px' }}></i>
+                      <p>Cargando multimedia...</p>
+                    </div>
+                  ) : !inicioUrl ? (
+                    <div style={{ padding: '30px', color: 'var(--text-muted)' }}>
+                      <i className="fa-solid fa-video-slash" style={{ fontSize: '2.5rem', marginBottom: '10px' }}></i>
+                      <p style={{ margin: 0 }}>Ingresa una URL arriba para previsualizar el video de bienvenida.</p>
+                    </div>
+                  ) : (
+                    <div style={{ maxWidth: '400px', margin: '0 auto', borderRadius: '12px', overflow: 'hidden', border: '2px solid var(--accent-gold)', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
+                      {/\.(mp4|webm|mov|m3u8)($|\?)/i.test(inicioUrl) || inicioUrl.includes('/video/') || inicioUrl.includes('v.pinimg.com') ? (
+                        <video 
+                          controls 
+                          autoPlay 
+                          loop 
+                          muted 
+                          playsInline 
+                          src={inicioUrl} 
+                          style={{ width: '100%', maxHeight: '420px', objectFit: 'cover', display: 'block' }}
+                          onError={(e) => {
+                            console.warn("Preview video error:", e);
+                          }}
+                        />
+                      ) : (
+                        <img 
+                          src={inicioUrl} 
+                          alt="Vista previa inicio" 
+                          style={{ width: '100%', maxHeight: '420px', objectFit: 'cover', display: 'block' }}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="news-manager-sticky-footer" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <button 
+                    type="submit" 
+                    className="btn-primary" 
+                    disabled={inicioSaving}
+                    style={{ padding: '12px 28px', fontSize: '0.95rem' }}
+                  >
+                    {inicioSaving ? (
+                      <>
+                        <i className="fa-solid fa-spinner fa-spin"></i> Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-floppy-disk"></i> Guardar Cambios
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
