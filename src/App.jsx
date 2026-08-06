@@ -85,6 +85,7 @@ function App() {
   const [inicioUrl, setInicioUrl] = useState('');
   const [inicioLoading, setInicioLoading] = useState(false);
   const [inicioSaving, setInicioSaving] = useState(false);
+  const [extractedInicioVideo, setExtractedInicioVideo] = useState('');
 
   // Music Manager State (Background playlist tracks)
   const [musicsList, setMusicsList] = useState([]);
@@ -298,6 +299,38 @@ function App() {
       setInicioSaving(false);
     }
   };
+
+  // Auto-extract Pinterest MP4/HLS stream for admin preview box
+  useEffect(() => {
+    if (!inicioUrl) {
+      setExtractedInicioVideo('');
+      return;
+    }
+
+    if (inicioUrl.includes('pinterest.com/pin/') || inicioUrl.includes('pin.it/')) {
+      const extract = async () => {
+        try {
+          const res = await fetch(`${apiBaseUrl}/api/pinterest-video?url=${encodeURIComponent(inicioUrl)}`, {
+            headers: {
+              'Bypass-Tunnel-Reminder': 'true',
+              'ngrok-skip-browser-warning': 'true'
+            }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.videoUrl) {
+              setExtractedInicioVideo(data.videoUrl);
+            }
+          }
+        } catch (e) {
+          console.warn('Could not extract Pinterest video in admin:', e);
+        }
+      };
+      extract();
+    } else {
+      setExtractedInicioVideo('');
+    }
+  }, [inicioUrl, apiBaseUrl]);
 
   // Fetch Background Music playlist config
   const fetchMusicsConfig = async (forceRefresh = false) => {
@@ -1922,8 +1955,8 @@ function App() {
                       </span>
 
                       <small style={{ color: 'var(--text-muted)' }}>
-                        {/\.(mp4|webm|mov|m3u8)($|\?)/i.test(inicioUrl) || inicioUrl.includes('/video/') || inicioUrl.includes('v.pinimg.com')
-                          ? '🎬 Formato Video detectado'
+                        {/\.(mp4|webm|mov|m3u8)($|\?)/i.test(inicioUrl) || inicioUrl.includes('/video/') || inicioUrl.includes('v.pinimg.com') || inicioUrl.includes('pinterest.com/pin/')
+                          ? '🎬 Video de Pinterest / MP4 detectado'
                           : '🖼️ Formato Imagen detectado'}
                       </small>
                     </div>
@@ -1940,7 +1973,7 @@ function App() {
                   textAlign: 'center'
                 }}>
                   <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--accent-gold)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                    <i className="fa-solid fa-eye" style={{ marginRight: '6px' }}></i> Vista Previa en Vivo
+                    <i className="fa-solid fa-eye" style={{ marginRight: '6px' }}></i> Vista Previa en Vivo (Solo Video, Sin Links)
                   </h4>
 
                   {inicioLoading ? (
@@ -1954,16 +1987,16 @@ function App() {
                       <p style={{ margin: 0 }}>Ingresa una URL arriba para previsualizar el video de bienvenida.</p>
                     </div>
                   ) : (
-                    <div style={{ maxWidth: '400px', margin: '0 auto', borderRadius: '12px', overflow: 'hidden', border: '2px solid var(--accent-gold)', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
-                      {/\.(mp4|webm|mov|m3u8)($|\?)/i.test(inicioUrl) || inicioUrl.includes('/video/') || inicioUrl.includes('v.pinimg.com') ? (
+                    <div style={{ maxWidth: '400px', margin: '0 auto', borderRadius: '12px', overflow: 'hidden', border: '2px solid var(--accent-gold)', boxShadow: '0 8px 24px rgba(0,0,0,0.6)', position: 'relative' }}>
+                      {extractedInicioVideo || /\.(mp4|webm|mov|m3u8)($|\?)/i.test(inicioUrl) || inicioUrl.includes('/video/') || inicioUrl.includes('v.pinimg.com') || inicioUrl.includes('pinterest.com/pin/') ? (
                         <video 
                           controls 
                           autoPlay 
                           loop 
                           muted 
                           playsInline 
-                          src={inicioUrl} 
-                          style={{ width: '100%', maxHeight: '420px', objectFit: 'cover', display: 'block' }}
+                          src={extractedInicioVideo || inicioUrl} 
+                          style={{ width: '100%', maxHeight: '420px', objectFit: 'cover', display: 'block', pointerEvents: 'auto' }}
                           onError={(e) => {
                             console.warn("Preview video error:", e);
                           }}
